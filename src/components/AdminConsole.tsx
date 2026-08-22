@@ -74,7 +74,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
         body: JSON.stringify({ password: password.trim() }),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as any;
       if (!res.ok || !data.success) {
         throw new Error(data.error || '密码错误');
       }
@@ -119,12 +119,12 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
       }
 
       if (statsRes.ok) {
-        const statsData = await statsRes.json();
+        const statsData = (await statsRes.json()) as AdminStats;
         setStats(statsData);
       }
 
       if (linksRes.ok) {
-        const linksData = await linksRes.json();
+        const linksData = (await linksRes.json()) as { list: AdminLinkItem[]; total: number; totalPages: number };
         setLinks(linksData.list || []);
         setTotalCount(linksData.total || 0);
         setTotalPages(linksData.totalPages || 1);

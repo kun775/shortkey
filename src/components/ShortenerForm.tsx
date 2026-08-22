@@ -35,7 +35,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ onSuccess, showToa
       setSlugChecking(true);
       try {
         const res = await fetch(`/api/check?slug=${encodeURIComponent(customSlug.trim())}`);
-        const data = await res.json();
+        const data = (await res.json()) as { available: boolean; reason: string };
         setSlugStatus(data);
       } catch {
         setSlugStatus(null);
@@ -92,12 +92,12 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ onSuccess, showToa
         }),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as any;
       if (!res.ok || !data.success) {
         throw new Error(data.error || '生成短链接失败');
       }
 
-      onSuccess(data);
+      onSuccess(data as ShortLink);
       setUrl('');
       setCustomSlug('');
       setTitle('');

@@ -1,9 +1,11 @@
 name = "shortkey"
+main = "src/worker.ts"
 compatibility_date = "2024-09-23"
-pages_build_output_dir = "dist"
 
+# 静态前端资源目录 (Cloudflare Workers + Assets)
 [assets]
 directory = "./dist"
+binding = "ASSETS"
 
 # D1 数据库绑定
 [[d1_databases]]

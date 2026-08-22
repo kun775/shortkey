@@ -39,7 +39,7 @@ export const EditModal: React.FC<EditModalProps> = ({ item, onClose, onSuccess, 
         }),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as any;
       if (!res.ok || !data.success) {
         throw new Error(data.error || '保存修改失败');
       }
