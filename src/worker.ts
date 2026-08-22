@@ -257,20 +257,27 @@ export default {
 
     // 6. 静态前端资源托管与 SPA 单页应用路由分发
     if (env.ASSETS) {
-      // 若请求前端页面路由（如 /admin, /admin/, / 或无物理扩展名的页面路径），直接分发 index.html 交由前端 React 渲染
-      const isAssetFile = pathname.startsWith('/assets/') || /\.[a-zA-Z0-9]+$/.test(pathname);
-      if (!isAssetFile && method === 'GET') {
-        const indexUrl = new URL('/index.html', request.url);
-        return env.ASSETS.fetch(new Request(indexUrl.toString(), request));
+      // 若请求物理静态文件（如 /assets/*.js, /assets/*.css, /favicon.ico 等），直接走静态文件托管
+      const isAssetFile = pathname.startsWith('/assets/') || (pathname.includes('.') && !pathname.endsWith('.html'));
+      if (isAssetFile) {
+        return env.ASSETS.fetch(request);
       }
 
-      const assetResponse = await env.ASSETS.fetch(request);
-      if (assetResponse.status === 404 && method === 'GET') {
-        const indexUrl = new URL('/index.html', request.url);
-        return env.ASSETS.fetch(new Request(indexUrl.toString(), request));
-      }
+      // 前端单页页面路由（如 /admin, /admin/, / 等）：直接拉取根路径并以 200 状态下发 HTML
+      // 严禁直接请求 /index.html，避免触发 Cloudflare Assets 默认的 307 Canonical Redirect (跳转回 /)
+      const rootUrl = new URL('/', request.url);
+      const htmlRes = await env.ASSETS.fetch(new Request(rootUrl.toString(), {
+        method: 'GET',
+        headers: request.headers,
+      }));
 
-      return assetResponse;
+      return new Response(htmlRes.body, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'no-cache',
+        },
+      });
     }
 
     return new Response('Not Found', { status: 404 });
