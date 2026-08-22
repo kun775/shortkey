@@ -255,16 +255,17 @@ export default {
       }
     }
 
-    // 6. 静态前端资源托管 (支持 SPA 单页应用路由兜底)
+    // 6. 静态前端资源托管与 SPA 单页应用路由分发
     if (env.ASSETS) {
-      const assetResponse = await env.ASSETS.fetch(request);
-      if (assetResponse.status !== 404) {
-        return assetResponse;
+      // 若请求前端页面路由（如 /admin, /admin/, / 或无物理扩展名的页面路径），直接分发 index.html 交由前端 React 渲染
+      const isAssetFile = pathname.startsWith('/assets/') || /\.[a-zA-Z0-9]+$/.test(pathname);
+      if (!isAssetFile && method === 'GET') {
+        const indexUrl = new URL('/index.html', request.url);
+        return env.ASSETS.fetch(new Request(indexUrl.toString(), request));
       }
 
-      // 针对 /admin 等前端虚拟路由（无文件后缀的 GET 请求），回退拉取 /index.html 由前端 React 接管
-      const hasFileExtension = /\.[a-zA-Z0-9]+$/.test(pathname);
-      if (!hasFileExtension && method === 'GET') {
+      const assetResponse = await env.ASSETS.fetch(request);
+      if (assetResponse.status === 404 && method === 'GET') {
         const indexUrl = new URL('/index.html', request.url);
         return env.ASSETS.fetch(new Request(indexUrl.toString(), request));
       }

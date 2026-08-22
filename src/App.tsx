@@ -17,7 +17,7 @@ interface Toast {
 export const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'home' | 'admin'>(() => {
     if (typeof window !== 'undefined') {
-      const path = window.location.pathname.toLowerCase();
+      const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
       const hash = window.location.hash.toLowerCase();
       if (path === '/admin' || path.startsWith('/admin/') || hash === '#/admin' || hash === '#admin') {
         return 'admin';
@@ -37,7 +37,7 @@ export const App: React.FC = () => {
   // 监听浏览器前进后退与 URL 变化
   useEffect(() => {
     const handleLocationChange = () => {
-      const path = window.location.pathname.toLowerCase();
+      const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
       const hash = window.location.hash.toLowerCase();
       if (path === '/admin' || path.startsWith('/admin/') || hash === '#/admin' || hash === '#admin') {
         setCurrentView('admin');
@@ -45,6 +45,8 @@ export const App: React.FC = () => {
         setCurrentView('home');
       }
     };
+
+    handleLocationChange();
 
     window.addEventListener('popstate', handleLocationChange);
     window.addEventListener('hashchange', handleLocationChange);
