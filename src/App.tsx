@@ -15,7 +15,17 @@ interface Toast {
 }
 
 export const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'admin'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'admin'>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      if (path === '/admin' || path.startsWith('/admin/') || hash === '#/admin' || hash === '#admin') {
+        return 'admin';
+      }
+    }
+    return 'home';
+  });
+
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
@@ -23,6 +33,35 @@ export const App: React.FC = () => {
   const [currentResult, setCurrentResult] = useState<ShortLink | null>(null);
   const [history, setHistory] = useState<ShortLink[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // 监听浏览器前进后退与 URL 变化
+  useEffect(() => {
+    const handleLocationChange = () => {
+      const path = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      if (path === '/admin' || path.startsWith('/admin/') || hash === '#/admin' || hash === '#admin') {
+        setCurrentView('admin');
+      } else {
+        setCurrentView('home');
+      }
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
+  }, []);
+
+  const handleViewChange = (view: 'home' | 'admin') => {
+    setCurrentView(view);
+    if (view === 'admin') {
+      window.history.pushState(null, '', '/admin');
+    } else {
+      window.history.pushState(null, '', '/');
+    }
+  };
 
   // 暗黑模式切换
   useEffect(() => {
@@ -77,12 +116,12 @@ export const App: React.FC = () => {
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         currentView={currentView}
-        setCurrentView={setCurrentView}
+        onNavigate={handleViewChange}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 px-4 py-8 sm:px-6 sm:py-12">
-        <div className="mx-auto max-w-2xl">
+      <main className="flex-1 px-4 py-6 sm:px-6 sm:py-10">
+        <div className={`mx-auto transition-all duration-300 ${currentView === 'admin' ? 'max-w-6xl' : 'max-w-2xl'}`}>
           {currentView === 'home' ? (
             <div className="space-y-8">
               {/* Hero Title Section */}

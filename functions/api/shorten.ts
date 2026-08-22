@@ -57,6 +57,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
+    const host = request.headers.get('host') || 'sk.gs';
+    try {
+      const parsed = new URL(rawUrl);
+      const targetHost = parsed.hostname.toLowerCase();
+      const serverHost = host.toLowerCase().split(':')[0];
+      if (targetHost === serverHost || targetHost === 'sk.gs' || targetHost === 'www.sk.gs') {
+        return new Response(JSON.stringify({ success: false, error: '禁止将目标网址指向 sk.gs 自身，防止死循环重定向' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    } catch {
+      return new Response(JSON.stringify({ success: false, error: '目标网址格式无效' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     const clientIp = request.headers.get('cf-connecting-ip') || '';
     let finalSlug = '';
 

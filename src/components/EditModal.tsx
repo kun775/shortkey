@@ -27,6 +27,24 @@ export const EditModal: React.FC<EditModalProps> = ({ item, onClose, onSuccess, 
       targetUrl = 'https://' + targetUrl;
     }
 
+    // 拦截自身域名环回死循环
+    try {
+      const parsed = new URL(targetUrl);
+      const curHost = window.location.hostname.toLowerCase();
+      const targetHost = parsed.hostname.toLowerCase();
+      if (
+        targetHost === curHost ||
+        targetHost === 'sk.gs' ||
+        targetHost === 'www.sk.gs'
+      ) {
+        showToast('禁止将目标网址指向 sk.gs 自身，防止死循环跳转', 'error');
+        return;
+      }
+    } catch {
+      showToast('请输入有效的网址', 'error');
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/link/${encodeURIComponent(item.slug)}`, {

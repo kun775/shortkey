@@ -27,6 +27,21 @@ function getCookie(request: Request, name: string): string | null {
   return match ? decodeURIComponent(match[2]) : null;
 }
 
+function isSelfReferencing(targetUrl: string, host: string): boolean {
+  try {
+    const parsed = new URL(targetUrl);
+    const targetHost = parsed.hostname.toLowerCase();
+    const serverHost = host.toLowerCase().split(':')[0];
+    return (
+      targetHost === serverHost ||
+      targetHost === 'sk.gs' ||
+      targetHost === 'www.sk.gs'
+    );
+  } catch {
+    return true;
+  }
+}
+
 function jsonResponse(data: any, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -50,6 +65,11 @@ export default {
 
         if (!rawUrl || !/^https?:\/\//i.test(rawUrl)) {
           return jsonResponse({ success: false, error: '网址格式不正确，必须以 http:// 或 https:// 开头' }, 400);
+        }
+
+        const host = request.headers.get('host') || 'sk.gs';
+        if (isSelfReferencing(rawUrl, host)) {
+          return jsonResponse({ success: false, error: '禁止将目标网址指向 sk.gs 自身，防止死循环重定向' }, 400);
         }
 
         const clientIp = request.headers.get('cf-connecting-ip') || '';
@@ -85,7 +105,6 @@ export default {
           'INSERT INTO links (slug, url, title, clicks, is_active, created_at, created_ip) VALUES (?, ?, ?, 0, 1, CURRENT_TIMESTAMP, ?)'
         ).bind(finalSlug, rawUrl, title, clientIp).run();
 
-        const host = request.headers.get('host') || 'sk.gs';
         const protocol = request.url.startsWith('https') ? 'https' : 'http';
 
         return jsonResponse({
@@ -194,6 +213,12 @@ export default {
         const slug = decodeURIComponent(linkMatch[1]);
         if (method === 'PUT') {
           const body = await request.json<{ url?: string; title?: string; is_active?: number }>();
+          if (body.url) {
+            const host = request.headers.get('host') || 'sk.gs';
+            if (isSelfReferencing(body.url, host)) {
+              return jsonResponse({ success: false, error: '禁止将目标网址指向 sk.gs 自身，防止死循环重定向' }, 400);
+            }
+          }
           await env.DB.prepare(
             'UPDATE links SET url = COALESCE(?, url), title = COALESCE(?, title), is_active = COALESCE(?, is_active) WHERE slug = ?'
           ).bind(body.url ?? null, body.title ?? null, body.is_active ?? null, slug).run();

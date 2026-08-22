@@ -27,11 +27,30 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       });
     }
 
-    if (body.url && !/^https?:\/\//i.test(body.url)) {
-      return new Response(JSON.stringify({ success: false, error: '目标网址格式不正确' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    if (body.url) {
+      if (!/^https?:\/\//i.test(body.url)) {
+        return new Response(JSON.stringify({ success: false, error: '目标网址格式不正确' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      const host = request.headers.get('host') || 'sk.gs';
+      try {
+        const parsed = new URL(body.url);
+        const targetHost = parsed.hostname.toLowerCase();
+        const serverHost = host.toLowerCase().split(':')[0];
+        if (targetHost === serverHost || targetHost === 'sk.gs' || targetHost === 'www.sk.gs') {
+          return new Response(JSON.stringify({ success: false, error: '禁止将目标网址指向 sk.gs 自身，防止死循环重定向' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+      } catch {
+        return new Response(JSON.stringify({ success: false, error: '目标网址格式无效' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     await env.DB.prepare(`
