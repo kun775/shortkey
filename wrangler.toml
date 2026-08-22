@@ -1,0 +1,13 @@
+name = "shortkey"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "dist"
+
+# D1 数据库绑定
+[[d1_databases]]
+binding = "DB"
+database_name = "shortkey-db"
+database_id = "your-d1-database-id-here"
+
+[vars]
+# 建议在 Cloudflare Pages Dashboard 的 Settings -> Environment Variables 中以 Secret 形式配置 ADMIN_SECRET
+# ADMIN_SECRET = "your-secure-admin-password"
