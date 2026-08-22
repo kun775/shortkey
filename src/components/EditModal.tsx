@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Save, Loader2 } from 'lucide-react';
 import { AdminLinkItem } from '../types';
 
@@ -14,6 +14,14 @@ export const EditModal: React.FC<EditModalProps> = ({ item, onClose, onSuccess, 
   const [title, setTitle] = useState(item.title || '');
   const [isActive, setIsActive] = useState(item.is_active === 1);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +57,7 @@ export const EditModal: React.FC<EditModalProps> = ({ item, onClose, onSuccess, 
     try {
       const res = await fetch(`/api/admin/link/${encodeURIComponent(item.slug)}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: targetUrl,
@@ -73,17 +82,24 @@ export const EditModal: React.FC<EditModalProps> = ({ item, onClose, onSuccess, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-fade-in">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900 animate-slide-up">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-fade-in" role="presentation" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-link-title"
+        className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900 animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+            <h3 id="edit-link-title" className="text-base font-semibold text-slate-900 dark:text-white">
               编辑短链: <span className="font-mono text-indigo-600 dark:text-indigo-400">sk.gs/{item.slug}</span>
             </h3>
           </div>
           <button
             onClick={onClose}
+            aria-label="关闭编辑弹窗"
             className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors"
           >
             <X className="h-5 w-5" />
@@ -126,8 +142,11 @@ export const EditModal: React.FC<EditModalProps> = ({ item, onClose, onSuccess, 
             </div>
             <button
               type="button"
+              role="switch"
+              aria-checked={isActive}
+              aria-label="启用该短链接"
               onClick={() => setIsActive((prev) => !prev)}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                 isActive ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
               }`}
             >

@@ -50,7 +50,8 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={() => setDarkMode((prev) => !prev)}
-            aria-label="切换主题模式"
+            aria-label={darkMode ? '切换为浅色模式' : '切换为深色模式'}
+            aria-pressed={darkMode}
             className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white transition-all active:scale-95"
           >
             {darkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}

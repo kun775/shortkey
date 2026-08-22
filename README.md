@@ -1,82 +1,91 @@
-# sk.gs · Short key, then go swift.
+# sk.gs · Short key, Go swift.
 
-> **sk.gs** 是一个基于 **Cloudflare Pages + Functions + D1 (SQLite at Edge)** 架构的全栈短链接 Web 应用程序。极速响应、安全防冲突、支持随机短 ID、自定义 Slug 与功能完善的轻量管理后台。
+极速、轻量的边缘短链接服务。基于 **Cloudflare Workers + Assets + D1**。
 
----
-
-## 🌟 特性一览
-
-- ⚡ **边缘极速跳转**：利用 Cloudflare 边缘计算与 D1 数据库，实现全球 <10ms 级别的 302 临时重定向。
-- 🎯 **智能 Slug 机制**：
-  - **默认随机**：采用 Base62 算法生成 4-6 位紧凑短 ID，支持主键碰撞自动重试。
-  - **自定义指定**：支持 2-30 位自定义短链后缀，前端实时防抖检测是否可用与保留字拦截。
-- 📊 **管理后台 (Admin Console)**：
-  - 基于 `ADMIN_SECRET` 环境变量的安全单密码鉴权。
-  - 核心指标看板：总短链数、累计跳转次数、活跃短链、今日新增。
-  - 完整 CRUD 操作：短链搜索筛选、修改目标 URL、备注标题、一键停用/重新启用、删除短链、导出 CSV。
-- 📱 **移动优先 (Mobile-First)**：适配 320px 手机到 4K 桌面端，支持二维码生成与 PNG 下载、一键复制带震动反馈。
-- 🌗 **无缝主题切换**：支持深色模式（Dark Mode）与浅色模式，符合 WCAG 2.2 AA 无障碍标准。
-- 🚀 **GitHub CI/CD 自动部署**：Push 代码即触发 Cloudflare Pages 自动构建与全球发布。
+线上地址：<https://sk.gs>  
+管理后台：<https://sk.gs/admin>（无公开入口，直接访问）
 
 ---
 
-## 🛠️ 技术选型
+## 特性
 
-- **前端界面**：React 18 + TypeScript + Vite + Tailwind CSS + Lucide React + qrcode.react
-- **边缘后端**：Cloudflare Pages Functions（无服务器 API）
-- **数据持久化**：Cloudflare D1（SQLite at Edge，支持事务唯一性、索引查询与原子计数）
-- **部署平台**：Cloudflare Pages（集成 Git 自动化流水线）
+- 边缘 302 跳转，点击计数异步写入，不阻塞响应
+- 默认 Base62 随机短码（4–6 位，冲突自动重试）；支持 2–30 位自定义 Slug
+- 拦截指向 `sk.gs` 自身的环回地址，以及非 `http/https` 协议
+- 公开创建接口按 IP 限流（每分钟 10 次 / 每天 100 条）
+- 管理后台：指标、搜索、编辑、启停、删除、CSV 导出
+- 管理员会话为 HttpOnly Cookie（HMAC 票据），**不会把密码下发给前端**
 
 ---
 
-## 🚀 本地开发与启动
+## 技术栈
+
+| 层 | 选型 |
+|---|---|
+| 前端 | React 18 + TypeScript + Vite + Tailwind CSS |
+| 边缘入口 | `src/worker.ts`（Cloudflare Workers + Assets） |
+| 数据 | Cloudflare D1（SQLite at edge） |
+| 部署 | GitHub push → Cloudflare Workers Builds |
+
+> `functions/` 是旧 Pages Functions 实现，已废弃，不要改那里。
+
+---
+
+## 本地开发
 
 ```bash
-# 1. 克隆代码与安装依赖
 git clone https://github.com/kun775/shortkey.git
 cd shortkey
 npm install
-
-# 2. 启动前端本地开发服务器
 npm run dev
 ```
 
+`npm run dev` 只启动前端。API / D1 需要 Cloudflare 环境，或使用 `npx wrangler dev`。
+
 ---
 
-## ☁️ Cloudflare 部署步骤
+## Cloudflare 部署
 
-### 1. 创建并初始化 Cloudflare D1 数据库
+### 1. D1
+
 ```bash
-# 创建 D1 数据库
 npx wrangler d1 create shortkey-db
-
-# 导入表结构至远程 D1 数据库
 npx wrangler d1 execute shortkey-db --remote --file=./schema.sql
 ```
 
-### 2. 在 Cloudflare Pages 中关联 GitHub 仓库
-1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)，进入 **Workers & Pages** -> **Create Application** -> **Pages** -> **Connect to Git**。
-2. 选择当前 GitHub 仓库 `kun775/shortkey`。
-3. 构建配置填入：
-   - **Framework preset**: `Vite`
-   - **Build command**: `npm run build`
-   - **Build output directory**: `dist`
-4. 点击 **Save and Deploy** 完成初次部署。
+把生成的 `database_id` 写入 `wrangler.toml` 的 `[[d1_databases]]`。
 
-### 3. 绑定 D1 数据库与管理员密钥
-在 Cloudflare Pages 项目的 **Settings** 中配置：
-1. **Functions -> D1 Database Bindings**：
-   - Variable name: `DB`
-   - D1 Database: 选择刚才创建的 `shortkey-db`
-2. **Environment variables**：
-   - 变量名：`ADMIN_SECRET`
-   - 变量值：`设置你的强密码（如 sk_admin_987x!）`
+### 2. 管理员密钥（必须用 Secret，不要写进仓库）
 
-### 4. 绑定自定义域名 `sk.gs`
-在 Pages 项目的 **Custom domains** 选项卡中，添加自定义域名 `sk.gs` 即可。
-后续只要在本地执行 `git push`，Cloudflare 将在 15~30 秒内自动完成边缘全量发布！
+```bash
+npx wrangler secret put ADMIN_SECRET
+```
+
+或在 Cloudflare Dashboard → Workers → shortkey → Settings → Variables → **Encrypt** 添加 `ADMIN_SECRET`。
+
+不要在 `wrangler.toml` 写 `[vars]` 明文密码，`wrangler deploy` 会覆盖控制台里的普通变量。
+
+### 3. Git 连接与构建
+
+- Build command：`npm run build`
+- Deploy command：`npx wrangler deploy`
+- Output：`dist`
+- `wrangler.toml` 已声明 `main = "src/worker.ts"` 和 `[assets]`
+
+绑定自定义域名 `sk.gs` 后，push `main` 即自动发布。
 
 ---
 
-## 📄 开源许可
-MIT License © [kun775](https://github.com/kun775)
+## 验证要点
+
+1. `GET https://sk.gs/admin` 返回 200，地址栏仍是 `/admin`
+2. 登录后 Application → Cookie 有 `sk_admin_session`（HttpOnly），localStorage 无密码
+3. 未登录 `PUT /api/admin/link/xxx` 返回 401
+4. 目标为 `javascript:` 或 `https://sk.gs/...` 时创建失败
+5. 停用短链后立刻访问应 403，不被缓存继续 302
+
+---
+
+## License
+
+MIT © [kun775](https://github.com/kun775)

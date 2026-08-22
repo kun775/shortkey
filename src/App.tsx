@@ -128,7 +128,7 @@ export const App: React.FC = () => {
             <div className="space-y-8">
               {/* Hero Title Section */}
               <div className="text-center pt-2 sm:pt-6 pb-1">
-                <h1 className="font-mono text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
+                <h1 className="font-mono text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:whitespace-nowrap">
                   Short key, <span className="text-indigo-600 dark:text-indigo-400">Go swift.</span>
                 </h1>
               </div>
@@ -183,6 +183,7 @@ export const App: React.FC = () => {
         {toasts.map((toast) => (
           <div
             key={toast.id}
+            role="status"
             className={`pointer-events-auto flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-medium text-white shadow-lg animate-slide-up ${
               toast.type === 'success'
                 ? 'bg-emerald-600'

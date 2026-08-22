@@ -29,9 +29,8 @@ interface AdminConsoleProps {
 }
 
 export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return !!localStorage.getItem('sk_admin_token');
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [password, setPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
@@ -43,6 +42,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [keyword, setKeyword] = useState('');
+  const [debouncedKeyword, setDebouncedKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | '1' | '0'>('all');
 
   // 编辑模态弹窗与复制状态
@@ -50,12 +50,21 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [deleteConfirmSlug, setDeleteConfirmSlug] = useState<string | null>(null);
 
-  const getAuthHeader = useCallback(() => {
-    const token = localStorage.getItem('sk_admin_token') || '';
-    return {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+  const jsonHeaders = { 'Content-Type': 'application/json' };
+
+  useEffect(() => {
+    localStorage.removeItem('sk_admin_token');
+    const probe = async () => {
+      try {
+        const res = await fetch('/api/admin/stats', { credentials: 'include' });
+        setIsAuthenticated(res.ok);
+      } catch {
+        setIsAuthenticated(false);
+      } finally {
+        setAuthChecked(true);
+      }
     };
+    void probe();
   }, []);
 
   // 登录
@@ -70,29 +79,33 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
     try {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: jsonHeaders,
         body: JSON.stringify({ password: password.trim() }),
       });
 
-      const data = (await res.json()) as any;
+      const data = (await res.json()) as { success?: boolean; error?: string };
       if (!res.ok || !data.success) {
         throw new Error(data.error || '密码错误');
       }
 
-      localStorage.setItem('sk_admin_token', data.token);
       setIsAuthenticated(true);
       setPassword('');
       showToast('管理员登录成功', 'success');
-    } catch (err: any) {
-      showToast(err.message || '登录失败', 'error');
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : '登录失败', 'error');
     } finally {
       setAuthLoading(false);
     }
   };
 
   // 退出登录
-  const handleLogout = () => {
-    localStorage.removeItem('sk_admin_token');
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' });
+    } catch {
+      // ignore
+    }
     setIsAuthenticated(false);
     showToast('已退出管理后台', 'info');
   };
@@ -101,19 +114,15 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const headers = getAuthHeader();
-
-      // 并行请求统计和列表
       const [statsRes, linksRes] = await Promise.all([
-        fetch('/api/admin/stats', { headers }),
+        fetch('/api/admin/stats', { credentials: 'include' }),
         fetch(
-          `/api/admin/links?page=${page}&limit=15&keyword=${encodeURIComponent(keyword)}&status=${statusFilter}`,
-          { headers }
+          `/api/admin/links?page=${page}&limit=15&keyword=${encodeURIComponent(debouncedKeyword)}&status=${statusFilter}`,
+          { credentials: 'include' }
         ),
       ]);
 
       if (statsRes.status === 401 || linksRes.status === 401) {
-        localStorage.removeItem('sk_admin_token');
         setIsAuthenticated(false);
         throw new Error('会话已过期，请重新登录');
       }
@@ -129,18 +138,40 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
         setTotalCount(linksData.total || 0);
         setTotalPages(linksData.totalPages || 1);
       }
-    } catch (err: any) {
-      showToast(err.message || '获取数据失败', 'error');
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : '获取数据失败', 'error');
     } finally {
       setLoading(false);
     }
-  }, [page, keyword, statusFilter, getAuthHeader, showToast]);
+  }, [page, debouncedKeyword, statusFilter, showToast]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedKeyword((prev) => {
+        if (prev !== keyword) setPage(1);
+        return keyword;
+      });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [keyword]);
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchData();
     }
   }, [isAuthenticated, fetchData]);
+
+  useEffect(() => {
+    if (!deleteConfirmSlug && !editingItem) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDeleteConfirmSlug(null);
+        setEditingItem(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [deleteConfirmSlug, editingItem]);
 
   // 复制链接
   const handleCopy = async (slug: string) => {
@@ -161,7 +192,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
     try {
       const res = await fetch(`/api/admin/link/${encodeURIComponent(item.slug)}`, {
         method: 'PUT',
-        headers: getAuthHeader(),
+        credentials: 'include',
+        headers: jsonHeaders,
         body: JSON.stringify({ is_active: nextStatus }),
       });
 
@@ -178,7 +210,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
     try {
       const res = await fetch(`/api/admin/link/${encodeURIComponent(slug)}`, {
         method: 'DELETE',
-        headers: getAuthHeader(),
+        credentials: 'include',
       });
 
       if (!res.ok) throw new Error('删除失败');
@@ -190,34 +222,57 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
     }
   };
 
-  // 导出 CSV
-  const handleExportCsv = () => {
-    if (links.length === 0) {
-      showToast('暂无数据可导出', 'info');
-      return;
+  // 导出 CSV（拉取当前筛选下的全量，不只当前页）
+  const handleExportCsv = async () => {
+    try {
+      const res = await fetch(
+        `/api/admin/links?page=1&limit=5000&keyword=${encodeURIComponent(debouncedKeyword)}&status=${statusFilter}`,
+        { credentials: 'include' }
+      );
+      if (res.status === 401) {
+        setIsAuthenticated(false);
+        throw new Error('会话已过期，请重新登录');
+      }
+      const data = (await res.json()) as { list?: AdminLinkItem[] };
+      const rowsSrc = data.list || [];
+      if (rowsSrc.length === 0) {
+        showToast('暂无数据可导出', 'info');
+        return;
+      }
+
+      const headers = ['Slug', '目标网址', '备注标题', '点击量', '状态', '创建时间'];
+      const rows = rowsSrc.map((l) => [
+        l.slug,
+        `"${l.url.replace(/"/g, '""')}"`,
+        `"${(l.title || '').replace(/"/g, '""')}"`,
+        l.clicks,
+        l.is_active === 1 ? '正常' : '已停用',
+        l.created_at,
+      ]);
+
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `sk_gs_links_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast(`已导出 ${rowsSrc.length} 条 CSV 报表`, 'success');
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : '导出失败', 'error');
     }
-
-    const headers = ['Slug', '目标网址', '备注标题', '点击量', '状态', '创建时间'];
-    const rows = links.map((l) => [
-      l.slug,
-      `"${l.url.replace(/"/g, '""')}"`,
-      `"${(l.title || '').replace(/"/g, '""')}"`,
-      l.clicks,
-      l.is_active === 1 ? '正常' : '已停用',
-      l.created_at,
-    ]);
-
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `sk_gs_links_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('已导出 CSV 报表', 'success');
   };
+
+  if (!authChecked) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-slate-400">
+        <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
 
   // 1. 登录表单
   if (!isAuthenticated) {
@@ -229,9 +284,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
               <Lock className="h-6 w-6 stroke-[2]" />
             </div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">管理控制台登录</h2>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              请输入在 Cloudflare 配置的 <code className="text-indigo-600 dark:text-indigo-400">ADMIN_SECRET</code> 访问密钥
-            </p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">请输入管理员密码</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -355,10 +408,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
           <input
             type="text"
             value={keyword}
-            onChange={(e) => {
-              setKeyword(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => setKeyword(e.target.value)}
             placeholder="搜索短链 Slug、目标网址或备注..."
             className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-xs sm:text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           />
@@ -448,6 +498,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
                           onClick={() => handleCopy(item.slug)}
                           className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                           title="复制完整短链"
+                          aria-label={`复制短链 ${item.slug}`}
                         >
                           {copiedSlug === item.slug ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
                         </button>
@@ -458,6 +509,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
                           rel="noopener noreferrer"
                           className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                           title="访问测试"
+                          aria-label={`访问测试 ${item.slug}`}
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
@@ -466,6 +518,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
                           onClick={() => setEditingItem(item)}
                           className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                           title="编辑短链"
+                          aria-label={`编辑短链 ${item.slug}`}
                         >
                           <Edit3 className="h-3.5 w-3.5" />
                         </button>
@@ -478,6 +531,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
                               : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50'
                           }`}
                           title={item.is_active === 1 ? '停用链接' : '重新启用'}
+                          aria-label={item.is_active === 1 ? `停用 ${item.slug}` : `启用 ${item.slug}`}
                         >
                           <Power className="h-3.5 w-3.5" />
                         </button>
@@ -486,6 +540,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
                           onClick={() => setDeleteConfirmSlug(item.slug)}
                           className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50 dark:hover:text-rose-400"
                           title="删除短链"
+                          aria-label={`删除短链 ${item.slug}`}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -614,13 +669,23 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmSlug && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-fade-in">
-          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-800 dark:bg-slate-900 animate-slide-up">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-fade-in"
+          role="presentation"
+          onClick={() => setDeleteConfirmSlug(null)}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-link-title"
+            className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-800 dark:bg-slate-900 animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-3 text-rose-600 mb-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/60">
                 <AlertTriangle className="h-5 w-5" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">确认删除短链接？</h3>
+              <h3 id="delete-link-title" className="text-sm font-bold text-slate-900 dark:text-white">确认删除短链接？</h3>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               删除后短链 <code className="font-mono font-bold text-indigo-600 dark:text-indigo-400">sk.gs/{deleteConfirmSlug}</code> 将立即失效无法跳转，该操作不可恢复。
