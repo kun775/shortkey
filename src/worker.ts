@@ -255,9 +255,21 @@ export default {
       }
     }
 
-    // 6. 静态前端资源托管 (回退到 ASSETS 或首页)
+    // 6. 静态前端资源托管 (支持 SPA 单页应用路由兜底)
     if (env.ASSETS) {
-      return env.ASSETS.fetch(request);
+      const assetResponse = await env.ASSETS.fetch(request);
+      if (assetResponse.status !== 404) {
+        return assetResponse;
+      }
+
+      // 针对 /admin 等前端虚拟路由（无文件后缀的 GET 请求），回退拉取 /index.html 由前端 React 接管
+      const hasFileExtension = /\.[a-zA-Z0-9]+$/.test(pathname);
+      if (!hasFileExtension && method === 'GET') {
+        const indexUrl = new URL('/index.html', request.url);
+        return env.ASSETS.fetch(new Request(indexUrl.toString(), request));
+      }
+
+      return assetResponse;
     }
 
     return new Response('Not Found', { status: 404 });
