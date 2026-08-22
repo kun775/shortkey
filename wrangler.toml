@@ -6,7 +6,7 @@ pages_build_output_dir = "dist"
 [[d1_databases]]
 binding = "DB"
 database_name = "shortkey-db"
-database_id = "your-d1-database-id-here"
+database_id = "a213a412-df53-45fb-aadd-55efce0ed0d3"
 
 [vars]
 # 建议在 Cloudflare Pages Dashboard 的 Settings -> Environment Variables 中以 Secret 形式配置 ADMIN_SECRET
