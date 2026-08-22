@@ -92,9 +92,8 @@ export const App: React.FC = () => {
                   <span>sk.gs · 边缘极速短链</span>
                 </div>
 
-                <h1 className="font-mono text-3xl font-extrabold tracking-tight sm:text-5xl text-slate-900 dark:text-white">
-                  Short key, then <br className="hidden sm:inline" />
-                  <span className="text-indigo-600 dark:text-indigo-400">go swift.</span>
+                <h1 className="font-mono text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
+                  Short key, <span className="text-indigo-600 dark:text-indigo-400">Go swift.</span>
                 </h1>
 
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-lg mx-auto">
@@ -149,7 +148,7 @@ export const App: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="font-mono font-bold text-slate-700 dark:text-slate-300">sk.gs</span>
             <span>·</span>
-            <span>Short key, then go swift.</span>
+            <span>Short key, Go swift.</span>
           </div>
 
           <div className="flex items-center gap-4">
