@@ -6,7 +6,7 @@ import { HistoryList } from './components/HistoryList';
 import { AdminConsole } from './components/AdminConsole';
 import { ShortLink } from './types';
 import { getLocalHistory, saveLocalHistory, removeHistoryItem, clearAllHistory } from './utils/storage';
-import { Zap, Shield, Sparkles, CheckCircle2, AlertCircle, Info, Github } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, Github } from 'lucide-react';
 
 interface Toast {
   id: number;
@@ -125,47 +125,19 @@ export const App: React.FC = () => {
           {currentView === 'home' ? (
             <div className="space-y-8">
               {/* Hero Title Section */}
-              <div className="text-center space-y-3">
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/40">
-                  <Zap className="h-3.5 w-3.5 text-indigo-500 fill-indigo-500" />
-                  <span>sk.gs · 边缘极速短链</span>
-                </div>
-
-                <h1 className="font-mono text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
+              <div className="text-center pt-2 sm:pt-6 pb-1">
+                <h1 className="font-mono text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
                   Short key, <span className="text-indigo-600 dark:text-indigo-400">Go swift.</span>
                 </h1>
-
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-lg mx-auto">
-                  基于 Cloudflare 全球边缘网络与 D1 驱动，毫秒级 302 直达跳转，纯粹、安全、无冗余。
-                </p>
               </div>
 
-              {/* Shortener Input Form */}
+              {/* Shortener Floating Input Form */}
               <ShortenerForm onSuccess={handleShortenSuccess} showToast={showToast} />
 
               {/* Latest Result Card */}
               {currentResult && (
                 <ResultCard link={currentResult} showToast={showToast} />
               )}
-
-              {/* Feature Badges */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-2">
-                <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200/60 bg-white/60 p-3 text-center dark:border-slate-800/60 dark:bg-slate-900/40">
-                  <Zap className="h-4 w-4 text-indigo-500 mb-1" />
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">边缘直达</span>
-                  <span className="text-[10px] text-slate-400">&lt;10ms 全球响应</span>
-                </div>
-                <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200/60 bg-white/60 p-3 text-center dark:border-slate-800/60 dark:bg-slate-900/40">
-                  <Shield className="h-4 w-4 text-emerald-500 mb-1" />
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">安全防冲突</span>
-                  <span className="text-[10px] text-slate-400">D1 原生唯一约束</span>
-                </div>
-                <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200/60 bg-white/60 p-3 text-center dark:border-slate-800/60 dark:bg-slate-900/40">
-                  <Sparkles className="h-4 w-4 text-amber-500 mb-1" />
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">自定义 Slug</span>
-                  <span className="text-[10px] text-slate-400">个性化定制后缀</span>
-                </div>
-              </div>
 
               {/* Local History Section */}
               <HistoryList
