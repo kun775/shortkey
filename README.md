@@ -1,4 +1,4 @@
-# sk.gs · Short key, Go swift.
+# sk.gs · Short Key, Go Swift.
 
 极速、轻量的边缘短链接服务。基于 **Cloudflare Workers + Assets + D1**。
 

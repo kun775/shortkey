@@ -128,8 +128,11 @@ export const App: React.FC = () => {
             <div className="space-y-8">
               {/* Hero Title Section */}
               <div className="text-center pt-2 sm:pt-6 pb-1">
-                <h1 className="font-mono text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:whitespace-nowrap">
-                  Short key, <span className="text-indigo-600 dark:text-indigo-400">Go swift.</span>
+                <h1 className="font-mono text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight sm:whitespace-nowrap">
+                  <span className="text-indigo-600 dark:text-indigo-400">Short</span>{' '}
+                  <span className="text-sky-600 dark:text-sky-400">Key,</span>{' '}
+                  <span className="text-emerald-600 dark:text-emerald-400">Go</span>{' '}
+                  <span className="text-amber-500 dark:text-amber-400">Swift.</span>
                 </h1>
               </div>
 
@@ -161,7 +164,12 @@ export const App: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="font-mono font-bold text-slate-700 dark:text-slate-300">sk.gs</span>
             <span>·</span>
-            <span>Short key, Go swift.</span>
+            <span>
+              <span className="text-indigo-600 dark:text-indigo-400">Short</span>{' '}
+              <span className="text-sky-600 dark:text-sky-400">Key,</span>{' '}
+              <span className="text-emerald-600 dark:text-emerald-400">Go</span>{' '}
+              <span className="text-amber-500 dark:text-amber-400">Swift.</span>
+            </span>
           </div>
 
           <div className="flex items-center gap-4">
