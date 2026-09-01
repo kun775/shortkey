@@ -1,0 +1,12 @@
+# robots.txt for sk.gs (Short Key, Go Swift)
+# Reference: https://developers.google.com/search/docs/crawling-indexing/robots/intro
+
+User-agent: *
+Allow: /
+Allow: /api/stats
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/admin/
+
+# 站点地图 Sitemap 指向
+Sitemap: https://sk.gs/sitemap.xml

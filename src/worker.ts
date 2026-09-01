@@ -6,7 +6,8 @@ export interface Env {
 
 const RESERVED_SLUGS = new Set([
   'api', 'admin', 'login', 'logout', 'dashboard', 'stats', 'static', 'assets',
-  'favicon.ico', 'robots.txt', 'sitemap.xml', 'index.html', 'terms', 'privacy',
+  'favicon.ico', 'favicon.svg', 'robots.txt', 'sitemap.xml', 'index.html', 'terms', 'privacy',
+  'manifest.json', 'site.webmanifest', 'og-image.svg', 'og-image.png',
   'help', 'about', 'null', 'undefined'
 ]);
 
@@ -254,6 +255,30 @@ export default {
         },
         200,
         { 'Cache-Control': 'public, max-age=60' }
+      );
+    }
+
+    // 2c. SEO: 保底响应 /robots.txt
+    if (pathname === '/robots.txt' && method === 'GET') {
+      if (env.ASSETS) {
+        const assetRes = await env.ASSETS.fetch(request);
+        if (assetRes.status === 200) return assetRes;
+      }
+      return new Response(
+        'User-agent: *\nAllow: /\nAllow: /api/stats\nDisallow: /admin\nDisallow: /admin/\nDisallow: /api/admin/\n\nSitemap: https://sk.gs/sitemap.xml\n',
+        { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } }
+      );
+    }
+
+    // 2d. SEO: 保底响应 /sitemap.xml
+    if (pathname === '/sitemap.xml' && method === 'GET') {
+      if (env.ASSETS) {
+        const assetRes = await env.ASSETS.fetch(request);
+        if (assetRes.status === 200) return assetRes;
+      }
+      return new Response(
+        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>https://sk.gs/</loc>\n    <lastmod>2026-09-01</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n</urlset>\n',
+        { status: 200, headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } }
       );
     }
 

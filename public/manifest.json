@@ -1,0 +1,17 @@
+{
+  "name": "sk.gs · Short Key, Go Swift",
+  "short_name": "sk.gs",
+  "description": "极速、安全、无冗余的边缘短链接生成与管理服务",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#4F46E5",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

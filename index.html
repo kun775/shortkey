@@ -2,18 +2,108 @@
 <html lang="zh-CN" class="scroll-smooth">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234F46E5'><path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/><path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="sk.gs - Short Key, Go Swift. 极速、安全、无冗余的边缘短链接生成与管理服务" />
+    
+    <!-- Title & Basic Metadata (Google SEO: Unique, informative and concise) -->
+    <title>sk.gs · 极速短链接生成器 | Short Key, Go Swift</title>
+    <meta name="description" content="sk.gs 是基于 Cloudflare 边缘计算的极速短网址生成器。提供毫秒级 302 重定向、自定义短链后缀、二维码生成、访问统计与 RESTful API，安全防环回，免费无广告。" />
+    <meta name="keywords" content="短链接生成器,短网址,短链,URL shortener,自定义短链接,免费短网址,边缘计算,sk.gs" />
+    <meta name="author" content="kun775" />
     <meta name="theme-color" content="#4F46E5" />
-    <title>sk.gs · Short Key, Go Swift</title>
-    <!-- Google Fonts Inter & JetBrains Mono -->
+    
+    <!-- Crawling & Indexing Directives (Google SEO: Explicit robots and canonical) -->
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <link rel="canonical" href="https://sk.gs/" />
+
+    <!-- Open Graph Metadata (Facebook, WeChat, Social Previews) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://sk.gs/" />
+    <meta property="og:title" content="sk.gs · 极速短链接生成器 | Short Key, Go Swift" />
+    <meta property="og:description" content="极速、安全、无冗余的边缘短链接生成与管理服务。毫秒级 302 跳转、支持自定义短码与实时统计。" />
+    <meta property="og:image" content="https://sk.gs/og-image.svg" />
+    <meta property="og:image:alt" content="sk.gs - Short Key, Go Swift 极速短链接服务" />
+    <meta property="og:site_name" content="sk.gs" />
+    <meta property="og:locale" content="zh_CN" />
+
+    <!-- Twitter Card Metadata -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://sk.gs/" />
+    <meta name="twitter:title" content="sk.gs · 极速短链接生成器 | Short Key, Go Swift" />
+    <meta name="twitter:description" content="极速、安全、无冗余的边缘短链接生成与管理服务。毫秒级 302 跳转、支持自定义短码与实时统计。" />
+    <meta name="twitter:image" content="https://sk.gs/og-image.svg" />
+
+    <!-- Icons & Manifest -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Performance & Preconnection (Core Web Vitals) -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+    <!-- Structured Data (JSON-LD: Schema.org WebApplication & WebSite) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://sk.gs/#website",
+            "url": "https://sk.gs/",
+            "name": "sk.gs",
+            "description": "极速、安全、无冗余的边缘短链接生成与管理服务",
+            "inLanguage": "zh-CN"
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://sk.gs/#webapp",
+            "name": "sk.gs 短链接生成器",
+            "alternateName": ["ShortKey", "sk.gs URL Shortener"],
+            "url": "https://sk.gs/",
+            "applicationCategory": "UtilitiesApplication",
+            "operatingSystem": "All",
+            "inLanguage": "zh-CN",
+            "description": "基于 Cloudflare 边缘计算的毫秒级短网址生成与管理工具，支持自定义短链后缀、二维码下载及访问量统计。",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "featureList": [
+              "毫秒级边缘 302 重定向",
+              "支持 2-30 位自定义短链 Slug",
+              "内置二维码一键生成与 PNG 导出",
+              "防环回跳转与危险协议拦截",
+              "公开 RESTful API 接口支持",
+              "多端暗黑模式与移动端自适应"
+            ]
+          }
+        ]
+      }
+    </script>
   </head>
   <body class="min-h-screen bg-slate-50 text-slate-900 antialiased selection:bg-indigo-500 selection:text-white dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200">
-    <div id="root"></div>
+    <div id="root">
+      <!-- Fallback semantic content for crawlers & initial page load -->
+      <noscript>
+        <div style="max-width: 680px; margin: 40px auto; padding: 20px; font-family: system-ui, -apple-system, sans-serif; line-height: 1.6;">
+          <h1 style="font-size: 28px; color: #4F46E5; margin-bottom: 8px;">sk.gs · 极速短链接生成器</h1>
+          <p style="color: #475569; font-size: 16px;"><strong>Short Key, Go Swift.</strong> 极速、安全、无冗余的边缘短链接生成与管理服务。</p>
+          <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 20px 0;" />
+          <h2 style="font-size: 20px; color: #0F172A;">主要功能特性：</h2>
+          <ul style="color: #334155;">
+            <li><strong>边缘 302 跳转：</strong>由 Cloudflare 全球边缘网络毫秒级重定向，点击计数异步写入。</li>
+            <li><strong>自定义短链后缀：</strong>支持指定 2-30 位字母、数字、下划线及连字符个性化短码。</li>
+            <li><strong>安全可靠：</strong>内置防环回死循环机制，自动拦截非 HTTP/HTTPS 危险协议。</li>
+            <li><strong>API 支持：</strong>提供 <code>POST /api/shorten</code> 与 <code>GET /api/stats</code> 规范接口。</li>
+          </ul>
+          <p style="color: #64748B; font-size: 14px; margin-top: 24px;">提示：请在浏览器中启用 JavaScript 以使用完整的交互式短链接生成与管理控制台。</p>
+        </div>
+      </noscript>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

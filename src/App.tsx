@@ -137,6 +137,9 @@ export const App: React.FC = () => {
                   <span className="text-emerald-600 dark:text-emerald-400">Go</span>{' '}
                   <span className="text-amber-500 dark:text-amber-400">Swift.</span>
                 </h1>
+                <p className="mt-2 sm:mt-3 text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
+                  极速、安全、无冗余的边缘短链接生成与管理
+                </p>
               </div>
 
               {/* Shortener Floating Input Form */}
