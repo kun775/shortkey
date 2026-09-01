@@ -27,7 +27,7 @@
 | 数据 | Cloudflare D1（SQLite at edge） |
 | 部署 | GitHub push → Cloudflare Workers Builds |
 
-> `functions/` 是旧 Pages Functions 实现，已废弃，不要改那里。
+> 早期版本使用 Cloudflare Pages Functions（`functions/`），已整体迁移到 Workers + Assets 并删除该目录。若需查阅旧实现，从 Git 历史中找回：`git log --diff-filter=D -- functions`。
 
 ---
 
