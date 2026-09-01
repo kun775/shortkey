@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { ShortenerForm } from './components/ShortenerForm';
 import { ResultCard } from './components/ResultCard';
 import { HistoryList } from './components/HistoryList';
+import { SiteStats } from './components/SiteStats';
 import { AdminConsole } from './components/AdminConsole';
 import { ShortLink } from './types';
 import { getLocalHistory, saveLocalHistory, removeHistoryItem, clearAllHistory } from './utils/storage';
@@ -32,6 +33,7 @@ export const App: React.FC = () => {
 
   const [currentResult, setCurrentResult] = useState<ShortLink | null>(null);
   const [history, setHistory] = useState<ShortLink[]>([]);
+  const [statsToken, setStatsToken] = useState(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   // 监听浏览器前进后退与 URL 变化
@@ -93,6 +95,7 @@ export const App: React.FC = () => {
     setCurrentResult(link);
     const updated = saveLocalHistory(link);
     setHistory(updated);
+    setStatsToken((t) => t + 1);
   };
 
   const handleRemoveHistory = (slug: string) => {
@@ -151,6 +154,9 @@ export const App: React.FC = () => {
                 onRemove={handleRemoveHistory}
                 showToast={showToast}
               />
+
+              {/* Global Site Statistics */}
+              <SiteStats refreshToken={statsToken} />
             </div>
           ) : (
             <AdminConsole showToast={showToast} />

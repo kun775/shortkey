@@ -241,6 +241,22 @@ export default {
       return jsonResponse({ available: !existing, reason: existing ? '已被占用' : '可以使用' });
     }
 
+    // 2b. API: 公开站点统计 GET /api/stats（仅暴露总量，不含任何明细）
+    if (pathname === '/api/stats' && method === 'GET') {
+      const summary = await env.DB.prepare(
+        'SELECT COUNT(*) as total_links, COALESCE(SUM(clicks), 0) as total_clicks FROM links'
+      ).first<{ total_links: number; total_clicks: number }>();
+      return jsonResponse(
+        {
+          success: true,
+          total_links: summary?.total_links || 0,
+          total_clicks: summary?.total_clicks || 0,
+        },
+        200,
+        { 'Cache-Control': 'public, max-age=60' }
+      );
+    }
+
     // 3. API: 管理后台登录 POST /api/admin/login
     if (pathname === '/api/admin/login' && method === 'POST') {
       const body = await request.json<{ password?: string }>().catch(() => ({ password: '' }));
