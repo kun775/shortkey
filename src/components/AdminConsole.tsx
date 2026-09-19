@@ -45,7 +45,12 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
   const [authChecked, setAuthChecked] = useState(false);
   const [password, setPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  // 密码登录入口默认视为开启：接口异常时保持既有行为，不误锁后台
+  const [passwordEnabled, setPasswordEnabled] = useState(true);
   const [ssoEnabled, setSsoEnabled] = useState(false);
+  // 两个入口都关闭 = 后台整体锁闭。默认按「可用」处理：接口异常时不应谎报锁闭，
+  // 那会把一个可用的后台描述成不可用。
+  const [anyLoginEnabled, setAnyLoginEnabled] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [sessionMode, setSessionMode] = useState<'p' | 'd' | null>(null);
 
@@ -92,10 +97,14 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
 
         if (providersRes && providersRes.ok) {
           const data = (await providersRes.json()) as {
+            password?: { enabled?: boolean };
             dex?: { enabled?: boolean };
             session?: { mode?: 'p' | 'd' | null };
+            anyEnabled?: boolean;
           };
+          setPasswordEnabled(data.password?.enabled !== false);
           setSsoEnabled(Boolean(data.dex?.enabled));
+          setAnyLoginEnabled(data.anyEnabled !== false);
           setSessionMode(data.session?.mode ?? null);
         }
       } catch {
@@ -317,39 +326,69 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
 
   if (!authChecked) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-slate-400">
-        <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+      <div className="flex min-h-0 flex-1 items-center justify-center text-slate-400">
+        <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
       </div>
     );
   }
 
-  // 1. 登录表单
+  /*
+   * 1a. 两个登录入口都已关闭 —— 后台整体锁闭。
+   * 必须与「登录表单」分开渲染：摆一个必然收到 403 的密码框，只会让人以为
+   * 是密码错了，而真正原因是服务端策略根本不允许登录。
+   */
+  if (!isAuthenticated && !anyLoginEnabled) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center px-4 animate-fade-in">
+        <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-7 text-center dark:border-slate-800 dark:bg-slate-900">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+            <Lock className="h-6 w-6 stroke-[2]" />
+          </div>
+          <h2 className="text-lg font-semibold tracking-title text-slate-900 dark:text-white">
+            管理后台当前不可登录
+          </h2>
+          <p className="mx-auto mt-2 max-w-xs text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            管理员密码登录（<code className="font-mono">PASSWORD_ENABLED=false</code>）与 DEX
+            单点登录均已关闭。请在服务端至少开启一种登录方式后重试。
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 1b. 登录表单
   if (!isAuthenticated) {
     return (
-      <div className="mx-auto flex min-h-[60vh] max-w-md flex-col justify-center px-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm dark:border-slate-800 dark:bg-slate-900 transition-all">
+      <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col justify-center px-4 animate-fade-in">
+        <div className="rounded-xl border border-slate-200 bg-white p-7 dark:border-slate-800 dark:bg-slate-900 transition-all">
           <div className="mb-6 flex flex-col items-center text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400 mb-3">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950/70 dark:text-brand-400">
               <Lock className="h-6 w-6 stroke-[2]" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">管理控制台登录</h2>
+            <h2 className="text-lg font-semibold tracking-title text-slate-900 dark:text-white">
+              管理控制台登录
+            </h2>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              {ssoEnabled ? '请使用管理员身份登录' : '请输入管理员密码'}
+              {ssoEnabled && passwordEnabled
+                ? '使用 DEX 单点登录或管理员密码'
+                : ssoEnabled
+                  ? '请使用管理员身份登录'
+                  : '请输入管理员密码'}
             </p>
           </div>
 
           {authError && (
-            <div className="mb-4 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
+            <div className="mb-4 flex items-start gap-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
               <AlertTriangle className="mt-px h-4 w-4 shrink-0" />
               <span>{authError}</span>
             </div>
           )}
 
           {ssoEnabled && (
-            <div className="mb-5">
+            <div className={passwordEnabled ? 'mb-5' : ''}>
               <a
                 href="/api/auth/oidc/start?return_to=%2Fadmin"
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 active:scale-[0.99] transition-all"
+                className="flex w-full items-center justify-center gap-2 rounded-md bg-brand-600 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-500 active:scale-[0.99]"
               >
                 <ShieldCheck className="h-4 w-4" />
                 <span>使用 DEX 登录</span>
@@ -357,43 +396,52 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
               <p className="mt-2 text-center text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
                 DEX 登录仅供授权管理员使用。DEX 不支持单点登出，共用设备上请勿保持登录状态。
               </p>
-              <div className="relative my-5">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200 dark:border-slate-800" />
+              {/* 分隔线只在密码入口也存在时才有意义 */}
+              {passwordEnabled && (
+                <div className="relative my-5">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-200 dark:border-slate-800" />
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className="bg-white px-2 text-[11px] text-slate-400 dark:bg-slate-900 dark:text-slate-500">
+                      或使用管理密码
+                    </span>
+                  </div>
                 </div>
-                <div className="relative flex justify-center">
-                  <span className="bg-white px-2 text-[11px] text-slate-400 dark:bg-slate-900 dark:text-slate-500">
-                    或使用管理密码
-                  </span>
-                </div>
-              </div>
+              )}
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                管理密码 (Secret)
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                required
-                className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-600/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              />
-            </div>
+          {passwordEnabled && (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
+                  管理密码 (Secret)
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  required
+                  className="w-full rounded-md border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 outline-none transition-colors focus:border-brand-600 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={authLoading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 active:scale-[0.99] disabled:opacity-60 transition-all cursor-pointer"
-            >
-              {authLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-              <span>验证并进入控制台</span>
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-brand-600 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-500 active:scale-[0.99] disabled:opacity-60"
+              >
+                {authLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4" />
+                )}
+                <span>验证并进入控制台</span>
+              </button>
+            </form>
+          )}
         </div>
       </div>
     );
@@ -401,11 +449,21 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
 
   // 2. 控制台主体
   return (
-    <div className="w-full space-y-6 animate-fade-in">
+    /*
+     * 视口锁定三段式：
+     *   Header 区（标题栏 / 指标卡 / 筛选栏）与列表卡片内的分页底栏都是 shrink-0
+     *   —— 它们在 flex 主轴上不被压缩，位置天然固定；
+     *   中间列表区用 min-h-0 flex-1 + overflow-auto 自己滚。
+     * 每一层都必须带 min-h-0：flex 子项默认 min-height:auto，漏一层就会撑成内容
+     * 高度，结果是整页滚不动、分页栏被顶出视口。
+     */
+    <div className="flex min-h-0 flex-1 flex-col gap-4 animate-fade-in">
+      {/* ═══ 固定 Header 区（以下三块 shrink-0，不参与滚动）═══ */}
+
       {/* Console Top Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-4 dark:border-slate-800">
+      <div className="flex shrink-0 flex-col justify-between gap-3 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-center dark:border-slate-800">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <h2 className="text-xl font-semibold tracking-title text-slate-900 dark:text-white">
             管理控制台 (Admin Console)
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -417,7 +475,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
           <button
             onClick={() => fetchData()}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>刷新</span>
@@ -425,7 +483,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
 
           <button
             onClick={handleExportCsv}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             <Download className="h-3.5 w-3.5" />
             <span>导出 CSV</span>
@@ -433,7 +491,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
 
           <button
             onClick={handleLogout}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-400 dark:hover:bg-rose-900/60 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-400 dark:hover:bg-rose-900/60"
           >
             <LogOut className="h-3.5 w-3.5" />
             <span>退出</span>
@@ -441,51 +499,51 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
         </div>
       </div>
 
-      {/* Metric Cards (4 Columns) */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+      {/* Metric Cards (4 Columns) —— 图标取中性灰：品牌靛紫按规范只留给 CTA 与链接，不做装饰 */}
+      <div className="grid shrink-0 grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+        <div className="rounded-lg border border-slate-200/80 bg-white p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">总短链接数</span>
-            <Link2 className="h-4 w-4 text-indigo-500" />
+            <Link2 className="h-4 w-4 text-slate-400 dark:text-slate-500" />
           </div>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <div className="mt-1.5 text-xl font-semibold tracking-title text-slate-900 sm:text-2xl dark:text-white">
             {stats?.total_links ?? '--'}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <div className="rounded-lg border border-slate-200/80 bg-white p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">累计跳转次数</span>
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
+            <TrendingUp className="h-4 w-4 text-slate-400 dark:text-slate-500" />
           </div>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400">
+          <div className="mt-1.5 text-xl font-semibold tracking-title text-slate-900 sm:text-2xl dark:text-white">
             {stats?.total_clicks ?? '--'}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <div className="rounded-lg border border-slate-200/80 bg-white p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">当前活跃短链</span>
-            <Activity className="h-4 w-4 text-amber-500" />
+            <Activity className="h-4 w-4 text-slate-400 dark:text-slate-500" />
           </div>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <div className="mt-1.5 text-xl font-semibold tracking-title text-slate-900 sm:text-2xl dark:text-white">
             {stats?.active_links ?? '--'}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <div className="rounded-lg border border-slate-200/80 bg-white p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">今日新增</span>
-            <Calendar className="h-4 w-4 text-sky-500" />
+            <Calendar className="h-4 w-4 text-slate-400 dark:text-slate-500" />
           </div>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+          <div className="mt-1.5 text-xl font-semibold tracking-title text-slate-900 sm:text-2xl dark:text-white">
             {stats?.today_links ?? '--'}
           </div>
         </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="flex shrink-0 flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -493,7 +551,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             placeholder="搜索短链 Slug、目标网址或备注..."
-            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-xs sm:text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            className="w-full rounded-md border border-slate-200 bg-white py-2 pl-9 pr-4 text-xs text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-brand-600 sm:text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           />
         </div>
 
@@ -504,7 +562,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
               setStatusFilter(e.target.value as any);
               setPage(1);
             }}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm text-slate-700 outline-none focus:border-indigo-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+            className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-brand-600 sm:text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
           >
             <option value="all">全部状态</option>
             <option value="1">仅看正常启用</option>
@@ -513,12 +571,12 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
         </div>
       </div>
 
-      {/* Table (Desktop) / Cards (Mobile) */}
-      <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
-        {/* Desktop Data Table */}
-        <div className="hidden md:block overflow-x-auto">
+      {/* ═══ 滚动列表卡片：列表滚动，分页底栏固定在卡片底部 ═══ */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900">
+        {/* Desktop Data Table —— min-h-0 flex-1 overflow-auto 这一段就是滚动区 */}
+        <div className="hidden min-h-0 flex-1 overflow-auto md:block">
           <table className="w-full text-left text-xs">
-            <thead className="border-b border-slate-200/80 bg-slate-50/80 text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+            <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-400">
               <tr>
                 <th className="py-3.5 pl-4 pr-2 font-semibold">短链 Slug</th>
                 <th className="px-3 py-3.5 font-semibold">目标原始网址</th>
@@ -532,7 +590,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
               {loading && links.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400">
-                    <Loader2 className="mx-auto h-6 w-6 animate-spin text-indigo-500 mb-2" />
+                    <Loader2 className="mx-auto h-6 w-6 animate-spin text-brand-500 mb-2" />
                     <span>加载数据中...</span>
                   </td>
                 </tr>
@@ -545,7 +603,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
               ) : (
                 links.map((item) => (
                   <tr key={item.slug} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 pl-4 pr-2 font-mono font-semibold text-indigo-600 dark:text-indigo-400">
+                    <td className="py-3.5 pl-4 pr-2 font-mono font-medium text-brand-600 dark:text-brand-400">
                       <div className="flex items-center gap-1.5">
                         <span>{item.slug}</span>
                         {item.title && (
@@ -579,7 +637,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => handleCopy(item.slug)}
-                          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                          className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                           title="复制完整短链"
                           aria-label={`复制短链 ${item.slug}`}
                         >
@@ -590,7 +648,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
                           href={`/${item.slug}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                          className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                           title="访问测试"
                           aria-label={`访问测试 ${item.slug}`}
                         >
@@ -599,7 +657,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
 
                         <button
                           onClick={() => setEditingItem(item)}
-                          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+                          className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                           title="编辑短链"
                           aria-label={`编辑短链 ${item.slug}`}
                         >
@@ -608,9 +666,9 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
 
                         <button
                           onClick={() => handleToggleStatus(item)}
-                          className={`rounded-lg p-1.5 ${
+                          className={`rounded-md p-1.5 ${
                             item.is_active === 1
-                              ? 'text-slate-500 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/50'
+                              ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white'
                               : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50'
                           }`}
                           title={item.is_active === 1 ? '停用链接' : '重新启用'}
@@ -621,7 +679,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
 
                         <button
                           onClick={() => setDeleteConfirmSlug(item.slug)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50 dark:hover:text-rose-400"
+                          className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50 dark:hover:text-rose-400"
                           title="删除短链"
                           aria-label={`删除短链 ${item.slug}`}
                         >
@@ -636,11 +694,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
           </table>
         </div>
 
-        {/* Mobile Stream Cards (< 768px) */}
-        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+        {/* Mobile Stream Cards (< 768px) —— 与桌面表格同层互斥，各自独立滚动 */}
+        <div className="block min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto md:hidden dark:divide-slate-800">
           {loading && links.length === 0 ? (
             <div className="py-10 text-center text-slate-400">
-              <Loader2 className="mx-auto h-5 w-5 animate-spin text-indigo-500 mb-1.5" />
+              <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand-500 mb-1.5" />
               <span className="text-xs">加载中...</span>
             </div>
           ) : links.length === 0 ? (
@@ -650,7 +708,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
               <div key={item.slug} className="p-4 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-mono text-sm font-bold text-indigo-600 dark:text-indigo-400">
+                    <span className="font-mono text-sm font-semibold text-brand-600 dark:text-brand-400">
                       sk.gs/{item.slug}
                     </span>
                     {item.title && (
@@ -681,28 +739,28 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
                 <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-2 dark:border-slate-800/80">
                   <button
                     onClick={() => handleCopy(item.slug)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                   >
                     <Copy className="h-3 w-3" />
                     <span>复制</span>
                   </button>
                   <button
                     onClick={() => setEditingItem(item)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                   >
                     <Edit3 className="h-3 w-3" />
                     <span>编辑</span>
                   </button>
                   <button
                     onClick={() => handleToggleStatus(item)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                   >
                     <Power className="h-3 w-3" />
                     <span>{item.is_active === 1 ? '停用' : '启用'}</span>
                   </button>
                   <button
                     onClick={() => setDeleteConfirmSlug(item.slug)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2.5 py-1 text-xs text-rose-600 dark:bg-rose-950/50 dark:text-rose-400"
+                    className="inline-flex items-center gap-1 rounded-md bg-rose-50 px-2.5 py-1 text-xs text-rose-600 dark:bg-rose-950/50 dark:text-rose-400"
                   >
                     <Trash2 className="h-3 w-3" />
                     <span>删除</span>
@@ -713,8 +771,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
           )}
         </div>
 
-        {/* Pagination Footer */}
-        <div className="flex items-center justify-between border-t border-slate-200/80 bg-slate-50/50 px-4 py-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/30 dark:text-slate-400">
+        {/* Pagination Footer —— shrink-0：固定在列表卡片底部，不随列表滚动 */}
+        <div className="flex shrink-0 items-center justify-between border-t border-slate-200/80 bg-slate-50/50 px-4 py-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/30 dark:text-slate-400">
           <span>
             共 <strong className="text-slate-900 dark:text-white">{totalCount}</strong> 条记录（第 {page}/{totalPages} 页）
           </span>
@@ -723,7 +781,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || loading}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
             >
               <ChevronLeft className="h-3 w-3" />
               <span>上一页</span>
@@ -731,7 +789,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || loading}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
             >
               <span>下一页</span>
               <ChevronRight className="h-3 w-3" />
@@ -753,7 +811,7 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
       {/* Delete Confirmation Modal */}
       {deleteConfirmSlug && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in"
           role="presentation"
           onClick={() => setDeleteConfirmSlug(null)}
         >
@@ -761,28 +819,28 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="delete-link-title"
-            className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-800 dark:bg-slate-900 animate-slide-up"
+            className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-800 dark:bg-slate-900 animate-slide-up"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 text-rose-600 mb-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/60">
                 <AlertTriangle className="h-5 w-5" />
               </div>
-              <h3 id="delete-link-title" className="text-sm font-bold text-slate-900 dark:text-white">确认删除短链接？</h3>
+              <h3 id="delete-link-title" className="text-sm font-semibold text-slate-900 dark:text-white">确认删除短链接？</h3>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              删除后短链 <code className="font-mono font-bold text-indigo-600 dark:text-indigo-400">sk.gs/{deleteConfirmSlug}</code> 将立即失效无法跳转，该操作不可恢复。
+              删除后短链 <code className="font-mono font-semibold text-brand-600 dark:text-brand-400">sk.gs/{deleteConfirmSlug}</code> 将立即失效无法跳转，该操作不可恢复。
             </p>
             <div className="mt-5 flex items-center justify-end gap-2">
               <button
                 onClick={() => setDeleteConfirmSlug(null)}
-                className="rounded-xl border border-slate-200 px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="rounded-md border border-slate-200 px-3.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 取消
               </button>
               <button
                 onClick={() => handleDelete(deleteConfirmSlug)}
-                className="rounded-xl bg-rose-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-rose-500 shadow-xs"
+                className="rounded-md bg-rose-600 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-500"
               >
                 确认删除
               </button>

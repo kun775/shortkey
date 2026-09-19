@@ -51,23 +51,26 @@ export const SiteStats: React.FC<SiteStatsProps> = ({ refreshToken = 0 }) => {
   // 拉取失败或本地开发（无 Worker）时不展示该区块，避免页面上出现无意义的占位
   if (failed || !stats) return null;
 
+  /*
+   * 数值一律取主文本色。此前两项分别用靛紫与翠绿 —— 但这两个数字都不是"状态"，
+   * 只是计数，用色不承载语义，只会稀释品牌色（DESIGN.md §7：强调色只留给 CTA
+   * 与交互元素，不装饰性使用）。
+   */
   const items = [
     {
       label: '累计短链',
       value: stats.total_links,
       icon: <Link2 className="h-3.5 w-3.5" />,
-      accent: 'text-indigo-600 dark:text-indigo-400',
     },
     {
       label: '累计点击',
       value: stats.total_clicks,
       icon: <MousePointerClick className="h-3.5 w-3.5" />,
-      accent: 'text-emerald-600 dark:text-emerald-400',
     },
   ];
 
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white/60 px-2 py-4 shadow-xs dark:border-slate-800/80 dark:bg-slate-900/40">
+    <div className="rounded-lg border border-slate-200/80 bg-white px-2 py-4 dark:border-slate-800/80 dark:bg-slate-900/40">
       <div className="grid grid-cols-2 divide-x divide-slate-200/80 dark:divide-slate-800/80">
         {items.map((item) => (
           <div key={item.label} className="flex flex-col items-center gap-1 px-3">
@@ -75,7 +78,7 @@ export const SiteStats: React.FC<SiteStatsProps> = ({ refreshToken = 0 }) => {
               {item.icon}
               <span>{item.label}</span>
             </div>
-            <div className={`font-mono text-2xl font-bold tracking-tight ${item.accent}`}>
+            <div className="font-mono text-2xl font-semibold tracking-title text-slate-900 dark:text-white">
               {item.value.toLocaleString('en-US')}
             </div>
           </div>

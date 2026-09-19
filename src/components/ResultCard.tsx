@@ -53,13 +53,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({ link, showToast }) => {
   };
 
   return (
-    <div className="w-full rounded-3xl border border-indigo-200/80 bg-white/95 p-6 shadow-[0_15px_40px_rgba(79,70,229,0.08)] sm:p-7 dark:border-indigo-900/60 dark:bg-slate-900/90 dark:shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl animate-slide-up transition-all ring-1 ring-indigo-500/10">
+    <div className="w-full rounded-xl border border-brand-200/80 bg-white p-6 animate-slide-up sm:p-7 dark:border-brand-900/60 dark:bg-slate-900">
       <div className="flex flex-col gap-4">
         {/* Header indicator */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20 animate-pulse" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               短链接已就绪
             </span>
           </div>
@@ -71,10 +71,10 @@ export const ResultCard: React.FC<ResultCardProps> = ({ link, showToast }) => {
         </div>
 
         {/* Short URL Banner */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-2xl border border-indigo-200/80 bg-indigo-50/40 p-4 dark:border-indigo-800/60 dark:bg-slate-800/80 shadow-xs">
+        <div className="flex flex-col items-stretch justify-between gap-3 rounded-lg border border-brand-200/70 bg-brand-50/50 p-4 sm:flex-row sm:items-center dark:border-brand-900/60 dark:bg-slate-800/60">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <Share2 className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
-            <span className="font-mono text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white truncate">
+            <Share2 className="h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" />
+            <span className="truncate font-mono text-base font-semibold tracking-title text-slate-900 sm:text-lg dark:text-white">
               {link.short_url}
             </span>
           </div>
@@ -82,10 +82,10 @@ export const ResultCard: React.FC<ResultCardProps> = ({ link, showToast }) => {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleCopy}
-              className={`flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all active:scale-95 cursor-pointer ${
+              className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-4 py-2 text-xs font-medium transition-colors active:scale-95 sm:flex-initial ${
                 copied
                   ? 'bg-emerald-600 text-white dark:bg-emerald-500'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-md shadow-indigo-500/20'
+                  : 'bg-brand-600 text-white hover:bg-brand-500'
               }`}
             >
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
@@ -94,7 +94,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ link, showToast }) => {
 
             <button
               onClick={() => setShowQr((prev) => !prev)}
-              className="flex items-center justify-center rounded-xl border border-slate-200/80 bg-white p-2.5 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors"
+              className="flex items-center justify-center rounded-md border border-slate-200/80 bg-white p-2.5 text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
               title="查看二维码"
             >
               <QrCode className="h-4 w-4" />
@@ -104,7 +104,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ link, showToast }) => {
               href={link.short_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center rounded-xl border border-slate-200/80 bg-white p-2.5 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors"
+              className="flex items-center justify-center rounded-md border border-slate-200/80 bg-white p-2.5 text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
               title="新窗口打开测试"
             >
               <ExternalLink className="h-4 w-4" />
@@ -122,8 +122,8 @@ export const ResultCard: React.FC<ResultCardProps> = ({ link, showToast }) => {
 
         {/* QR Code Drawer / Section */}
         {showQr && (
-          <div className="mt-2 flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 animate-fade-in dark:border-slate-800 dark:bg-slate-800/80">
-            <div className="rounded-xl bg-white p-4 shadow-sm">
+          <div className="mt-2 flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-white p-6 animate-fade-in dark:border-slate-800 dark:bg-slate-800/80">
+            <div className="rounded-lg bg-white p-4">
               <QRCodeSVG
                 id="qr-code-svg"
                 value={link.short_url}
@@ -135,7 +135,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ link, showToast }) => {
             <div className="mt-4 flex items-center gap-3">
               <button
                 onClick={handleDownloadQr}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
               >
                 <Download className="h-3.5 w-3.5" />
                 <span>下载二维码 (PNG)</span>

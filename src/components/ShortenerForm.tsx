@@ -129,11 +129,11 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ onSuccess, showToa
   };
 
   return (
-    <div className="w-full rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-[0_15px_40px_rgba(0,0,0,0.05)] sm:p-8 dark:border-slate-800/80 dark:bg-slate-900/90 dark:shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-all duration-300 hover:shadow-[0_20px_50px_rgba(79,70,229,0.1)] dark:hover:shadow-[0_20px_50px_rgba(99,102,241,0.15)] ring-1 ring-slate-900/5 dark:ring-white/5">
+    <div className="w-full rounded-xl border border-slate-200 bg-white p-6 sm:p-8 dark:border-slate-800 dark:bg-slate-900">
       <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
         {/* Main URL Input */}
         <div className="relative">
-          <label htmlFor="url-input" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <label htmlFor="url-input" className="mb-2 block text-xs font-medium text-slate-500 dark:text-slate-400">
             原始长链接 (Target URL)
           </label>
           <div className="relative flex items-center">
@@ -144,7 +144,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ onSuccess, showToa
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://example.com/very/long/url/path..."
               required
-              className="w-full rounded-2xl border border-slate-300/90 bg-slate-50/70 px-4 py-3.5 pr-20 text-sm sm:text-base text-slate-900 placeholder-slate-400 outline-none transition-all focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-600/10 dark:border-slate-700/80 dark:bg-slate-800/60 dark:text-white dark:placeholder-slate-500 dark:focus:border-indigo-400 dark:focus:bg-slate-800"
+              className="w-full rounded-md border border-slate-300/90 bg-slate-50/70 px-4 py-3.5 pr-20 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-brand-600 focus:bg-white sm:text-base dark:border-slate-700/80 dark:bg-slate-800/60 dark:text-white dark:placeholder-slate-500 dark:focus:border-brand-400 dark:focus:bg-slate-800"
             />
             {/* Action buttons inside input */}
             <div className="absolute right-2.5 flex items-center gap-1">
@@ -153,7 +153,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ onSuccess, showToa
                   type="button"
                   onClick={() => setUrl('')}
                   aria-label="清空输入"
-                  className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200 transition-colors"
+                  className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -162,7 +162,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ onSuccess, showToa
                   type="button"
                   onClick={handlePaste}
                   title="粘贴剪贴板网址"
-                  className="inline-flex items-center gap-1 rounded-xl bg-slate-200/80 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-300 dark:bg-slate-700/80 dark:text-slate-300 dark:hover:bg-slate-600 transition-colors"
+                  className="inline-flex items-center gap-1 rounded-md bg-slate-200/80 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-300 dark:bg-slate-700/80 dark:text-slate-300 dark:hover:bg-slate-600"
                 >
                   <Clipboard className="h-3.5 w-3.5" />
                   <span>粘贴</span>
@@ -177,7 +177,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ onSuccess, showToa
           <button
             type="button"
             onClick={() => setShowAdvanced((prev) => !prev)}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors cursor-pointer"
+            className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-brand-600 transition-colors hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
           >
             {showAdvanced ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             <span>{showAdvanced ? '收起自定义短链与备注' : '自定义短链后缀与备注 (Optional)'}</span>
@@ -186,7 +186,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ onSuccess, showToa
 
         {/* Collapsible Advanced Options */}
         {showAdvanced && (
-          <div className="space-y-3 rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 sm:p-5 animate-fade-in dark:border-slate-800/80 dark:bg-slate-950/40">
+          <div className="space-y-3 rounded-lg border border-slate-200/70 bg-slate-50/80 p-4 animate-fade-in sm:p-5 dark:border-slate-800/80 dark:bg-slate-950/40">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {/* Custom Slug Input */}
               <div>
@@ -203,7 +203,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ onSuccess, showToa
                     onChange={(e) => setCustomSlug(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
                     placeholder="my-link"
                     maxLength={30}
-                    className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-16 pr-8 font-mono text-xs sm:text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    className="w-full rounded-md border border-slate-200 bg-white py-2.5 pl-16 pr-8 font-mono text-xs text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-brand-600 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
                   {/* Status Indicator */}
                   <div className="absolute right-2.5 flex items-center">
@@ -238,7 +238,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ onSuccess, showToa
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="如：GitHub 仓库主页"
                   maxLength={50}
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 px-3 text-xs sm:text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-brand-600 sm:text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
             </div>
@@ -249,7 +249,7 @@ export const ShortenerForm: React.FC<ShortenerFormProps> = ({ onSuccess, showToa
         <button
           type="submit"
           disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 py-4 text-sm sm:text-base font-semibold text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-500 hover:shadow-indigo-600/35 active:scale-[0.99] disabled:opacity-60 transition-all cursor-pointer"
+          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-brand-600 px-6 py-4 text-sm font-medium text-white transition-colors hover:bg-brand-500 active:scale-[0.99] disabled:opacity-60 sm:text-base"
         >
           {loading ? (
             <>

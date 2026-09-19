@@ -114,8 +114,17 @@ export const App: React.FC = () => {
     showToast('本地记录已清空', 'info');
   };
 
+  const isAdminView = currentView === 'admin';
+
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200">
+    /*
+     * 工作台外壳：视口锁定 + 内部滚动。
+     * Header 与 Footer 是 flex 列的两端（shrink-0，天然固定），只有中间区域滚动 ——
+     * 这就是「固定 header/footer + 列表滚动」的落点。
+     * 链路上每一层都带 `min-h-0`：flex 子项默认 min-height:auto，漏掉它会让
+     * flex-1 撑成内容高度，结果是整页滚不动、底栏被挤出视口。
+     */
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-slate-50 text-slate-900 transition-colors duration-200 dark:bg-slate-950 dark:text-slate-100">
       {/* Top Navigation */}
       <Header
         darkMode={darkMode}
@@ -125,17 +134,25 @@ export const App: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 px-4 py-6 sm:px-6 sm:py-10">
-        <div className={`mx-auto transition-all duration-300 ${currentView === 'admin' ? 'max-w-6xl' : 'max-w-2xl'}`}>
+      <main
+        className={`min-h-0 flex-1 ${isAdminView ? 'overflow-hidden' : 'overflow-y-auto'}`}
+      >
+        <div
+          className={`mx-auto flex w-full min-h-0 flex-col transition-all duration-300 ${
+            isAdminView
+              ? 'h-full max-w-6xl px-4 pb-4 pt-4 sm:px-6'
+              : 'max-w-2xl px-4 py-6 sm:px-6 sm:py-10'
+          }`}
+        >
           {currentView === 'home' ? (
             <div className="space-y-8">
               {/* Hero Title Section */}
               <div className="text-center pt-2 sm:pt-6 pb-1">
-                <h1 className="font-mono text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight sm:whitespace-nowrap">
-                  <span className="text-indigo-600 dark:text-indigo-400">Short</span>{' '}
-                  <span className="text-sky-600 dark:text-sky-400">Key,</span>{' '}
-                  <span className="text-emerald-600 dark:text-emerald-400">Go</span>{' '}
-                  <span className="text-amber-500 dark:text-amber-400">Swift.</span>
+                <h1 className="font-mono text-3xl font-semibold tracking-display sm:whitespace-nowrap sm:text-5xl md:text-6xl">
+                  <span className="text-brand-600 dark:text-brand-400">Short</span>{' '}
+                  <span className="text-slate-900 dark:text-slate-100">Key,</span>{' '}
+                  <span className="text-brand-600 dark:text-brand-400">Go</span>{' '}
+                  <span className="text-slate-900 dark:text-slate-100">Swift.</span>
                 </h1>
                 <p className="mt-2 sm:mt-3 text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">
                   极速、安全、无冗余的边缘短链接生成与管理
@@ -168,16 +185,14 @@ export const App: React.FC = () => {
       </main>
 
       {/* Global Footer */}
-      <footer className="border-t border-slate-200/80 py-6 text-center text-xs text-slate-400 dark:border-slate-800/80">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 sm:px-6">
+      <footer className="shrink-0 border-t border-slate-200 py-4 text-xs text-slate-500 dark:border-slate-800">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-2">
-            <span className="font-mono font-bold text-slate-700 dark:text-slate-300">sk.gs</span>
-            <span>·</span>
-            <span>
-              <span className="text-indigo-600 dark:text-indigo-400">Short</span>{' '}
-              <span className="text-sky-600 dark:text-sky-400">Key,</span>{' '}
-              <span className="text-emerald-600 dark:text-emerald-400">Go</span>{' '}
-              <span className="text-amber-500 dark:text-amber-400">Swift.</span>
+            <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">sk.gs</span>
+            <span className="text-slate-300 dark:text-slate-700">·</span>
+            <span className="font-mono text-slate-500 dark:text-slate-400">
+              <span className="text-brand-600 dark:text-brand-400">Short</span> Key,{' '}
+              <span className="text-brand-600 dark:text-brand-400">Go</span> Swift.
             </span>
           </div>
 
@@ -186,7 +201,7 @@ export const App: React.FC = () => {
               href="https://github.com/kun775/shortkey"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors"
+              className="inline-flex items-center gap-1 text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
             >
               <Github className="h-3.5 w-3.5" />
               <span>GitHub</span>

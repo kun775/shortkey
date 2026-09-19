@@ -3,8 +3,25 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * 高度链路基础。固定工作台布局（视口锁定 + 内部独立滚动）要求从根节点到
+   * 滚动区**每一层都有确定高度**：任何一层退化成内容高度，下游的 flex-1
+   * 就跟着失效，表现为「页面滚不动 / 固定底栏看不见」。
+   * html → body → #root 是这条链的头三段，必须显式给高度（#root 是 Vite
+   * 注入的裸 div，最容易漏）。
+   */
+  html,
+  body,
+  #root {
+    height: 100%;
+    min-height: 0;
+  }
+
   body {
     @apply font-sans bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+    /* 见 DESIGN.md §3：cv01 / ss03 是 Linear 字体识别的一部分 ——
+       缺了这两个 OpenType 特性，呈现出来就只是"普通 Inter"。 */
+    font-feature-settings: 'cv01', 'ss03';
   }
 }
 
