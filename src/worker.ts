@@ -1,6 +1,17 @@
-export interface Env {
+import { sha256Base64Url, timingSafeEqual } from './crypto-utils';
+import { handleOidcCallback, handleOidcStart, handleProviders, type OidcEnv } from './oidc';
+import {
+  SESSION_COOKIE,
+  SESSION_MAX_AGE,
+  clearSessionCookie,
+  createSessionToken,
+  getCookie,
+  sessionCookieHeader,
+  verifySessionToken,
+} from './session';
+
+export interface Env extends OidcEnv {
   DB: D1Database;
-  ADMIN_SECRET?: string;
   ASSETS?: Fetcher;
 }
 
@@ -14,8 +25,6 @@ const RESERVED_SLUGS = new Set([
 const BASE62_CHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const RATE_LIMIT_PER_MINUTE = 10;
 const RATE_LIMIT_PER_DAY = 100;
-const SESSION_MAX_AGE = 30 * 24 * 60 * 60;
-const SESSION_COOKIE = 'sk_admin_session';
 
 function generateRandomSlug(length = 4): string {
   const bytes = new Uint8Array(length);
@@ -27,72 +36,8 @@ function generateRandomSlug(length = 4): string {
   return result;
 }
 
-function getCookie(request: Request, name: string): string | null {
-  const cookieString = request.headers.get('Cookie');
-  if (!cookieString) return null;
-  const match = cookieString.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)'));
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  const max = Math.max(a.length, b.length);
-  let out = a.length ^ b.length;
-  for (let i = 0; i < max; i++) {
-    out |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
-  }
-  return out === 0;
-}
-
-async function sha256Hex(text: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return bufferToBase64Url(digest);
-}
-
-function bufferToBase64Url(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
-  let str = '';
-  for (let i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
-  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-async function hmacSign(secret: string, data: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
-  return bufferToBase64Url(sig);
-}
-
-async function createSessionToken(secret: string): Promise<string> {
-  const exp = String(Math.floor(Date.now() / 1000) + SESSION_MAX_AGE);
-  const sig = await hmacSign(secret, exp);
-  return `${exp}.${sig}`;
-}
-
-async function verifySessionToken(secret: string, token: string | null): Promise<boolean> {
-  if (!token) return false;
-  const dot = token.indexOf('.');
-  if (dot <= 0) return false;
-  const exp = token.slice(0, dot);
-  const sig = token.slice(dot + 1);
-  const expNum = parseInt(exp, 10);
-  if (!Number.isFinite(expNum) || expNum < Math.floor(Date.now() / 1000)) return false;
-  if (!/^\d+$/.test(exp) || !/^[A-Za-z0-9_-]+$/.test(sig)) return false;
-  const expected = await hmacSign(secret, exp);
-  return timingSafeEqual(sig, expected);
-}
-
-function sessionCookieHeader(token: string, isHttps: boolean, maxAge = SESSION_MAX_AGE): string {
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=${maxAge}; SameSite=Lax; HttpOnly;${isHttps ? ' Secure;' : ''}`;
-}
-
-function clearSessionCookie(isHttps: boolean): string {
-  return `${SESSION_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly;${isHttps ? ' Secure;' : ''}`;
-}
+// getCookie / 会话票据 / Cookie 头已抽到 ./session.ts，密码学原语在 ./crypto-utils.ts
+// —— worker 与 oidc 两个模块共用，避免会话票据格式在两处实现后发生漂移。
 
 function sanitizeHttpUrl(raw: string): string | null {
   try {
@@ -265,7 +210,7 @@ export default {
         if (assetRes.status === 200) return assetRes;
       }
       return new Response(
-        'User-agent: *\nAllow: /\nAllow: /api/stats\nDisallow: /admin\nDisallow: /admin/\nDisallow: /api/admin/\n\nSitemap: https://sk.gs/sitemap.xml\n',
+        'User-agent: *\nAllow: /\nAllow: /api/stats\nDisallow: /admin\nDisallow: /admin/\nDisallow: /api/admin/\nDisallow: /api/auth/\n\nSitemap: https://sk.gs/sitemap.xml\n',
         { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } }
       );
     }
@@ -282,6 +227,19 @@ export default {
       );
     }
 
+    // 2e. 单点登录（dex / OIDC）
+    // 必须注册在受保护的 /api/admin/* 分支**之前**：否则会被其鉴权守卫接管，
+    // 返回 401 而不是预期的 302 跳转 —— 这类顺序问题不报任何错，只在浏览器里表现为"点了没反应"。
+    if (pathname === '/api/auth/providers' && method === 'GET') {
+      return handleProviders(request, env);
+    }
+    if (pathname === '/api/auth/oidc/start' && method === 'GET') {
+      return handleOidcStart(request, env);
+    }
+    if (pathname === '/api/auth/oidc/callback' && method === 'GET') {
+      return handleOidcCallback(request, env);
+    }
+
     // 3. API: 管理后台登录 POST /api/admin/login
     if (pathname === '/api/admin/login' && method === 'POST') {
       const body = await request.json<{ password?: string }>().catch(() => ({ password: '' }));
@@ -290,12 +248,14 @@ export default {
         return jsonResponse({ success: false, error: '未配置管理员密钥' }, 500);
       }
       const input = body.password?.trim() || '';
-      const [inputHash, secretHash] = await Promise.all([sha256Hex(input), sha256Hex(secret)]);
+      const [inputHash, secretHash] = await Promise.all([sha256Base64Url(input), sha256Base64Url(secret)]);
       if (!input || !timingSafeEqual(inputHash, secretHash)) {
         return jsonResponse({ success: false, error: '管理员密码错误' }, 401);
       }
-      const token = await createSessionToken(secret);
-      return jsonResponse({ success: true }, 200, { 'Set-Cookie': sessionCookieHeader(token, isHttps) });
+      const token = await createSessionToken(secret, 'p', SESSION_MAX_AGE);
+      return jsonResponse({ success: true }, 200, {
+        'Set-Cookie': sessionCookieHeader(token, isHttps, SESSION_MAX_AGE),
+      });
     }
 
     // 3b. 退出登录（无需已登录）
@@ -306,8 +266,8 @@ export default {
     // 4. 管理后台受保护 API 路由 (/api/admin/*)
     if (pathname.startsWith('/api/admin/')) {
       const secret = env.ADMIN_SECRET?.trim();
-      const sessionOk = secret ? await verifySessionToken(secret, getCookie(request, SESSION_COOKIE)) : false;
-      if (!secret || !sessionOk) {
+      const verdict = secret ? await verifySessionToken(secret, getCookie(request, SESSION_COOKIE)) : null;
+      if (!secret || !verdict?.valid) {
         return jsonResponse({ error: '未授权访问' }, 401);
       }
 

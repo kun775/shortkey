@@ -28,11 +28,26 @@ interface AdminConsoleProps {
   showToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
 }
 
+/** 认证失败码 → 可读文案。服务端只回传稳定错误码，不回传堆栈或原始异常。 */
+const AUTH_ERROR_TEXT: Record<string, string> = {
+  Configuration: '认证服务配置异常，请检查 DEX 相关配置后重试。',
+  StateInvalid: '登录会话已失效（安全校验未通过），请重新发起登录。',
+  StateMismatch: '登录状态校验失败，请重新发起登录。',
+  AccessDenied: '该 DEX 账号未获授权访问本后台。',
+  OAuthCallback: '认证回调参数异常，请重新发起登录。',
+  TokenExchangeFailed: '与认证服务交换凭据失败，请稍后重试。',
+  InvalidIdToken: '身份令牌校验失败，请重新发起登录。',
+  SubMissing: '认证服务未返回用户标识，无法完成登录。',
+};
+
 export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [password, setPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [ssoEnabled, setSsoEnabled] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [sessionMode, setSessionMode] = useState<'p' | 'd' | null>(null);
 
   // 数据列表与统计状态
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -54,10 +69,35 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
 
   useEffect(() => {
     localStorage.removeItem('sk_admin_token');
+
+    // SSO 回调失败时，服务端以 ?error=<稳定错误码> 重定向回本页
+    const params = new URLSearchParams(window.location.search);
+    const errorCode = params.get('error');
+    if (errorCode) {
+      setAuthError(AUTH_ERROR_TEXT[errorCode] || `登录失败（错误码：${errorCode}）`);
+      params.delete('error');
+      const rest = params.toString();
+      window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : ''));
+    }
+
     const probe = async () => {
       try {
-        const res = await fetch('/api/admin/stats', { credentials: 'include' });
-        setIsAuthenticated(res.ok);
+        // SSO 入口的显隐必须在**运行时**向后端求值。若按构建期环境变量判定，
+        // 线上会因读不到 Secret 而永久隐藏入口，且不报任何错，极难排查。
+        const [statsRes, providersRes] = await Promise.all([
+          fetch('/api/admin/stats', { credentials: 'include' }),
+          fetch('/api/auth/providers').catch(() => null),
+        ]);
+        setIsAuthenticated(statsRes.ok);
+
+        if (providersRes && providersRes.ok) {
+          const data = (await providersRes.json()) as {
+            dex?: { enabled?: boolean };
+            session?: { mode?: 'p' | 'd' | null };
+          };
+          setSsoEnabled(Boolean(data.dex?.enabled));
+          setSessionMode(data.session?.mode ?? null);
+        }
       } catch {
         setIsAuthenticated(false);
       } finally {
@@ -90,6 +130,8 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
       }
 
       setIsAuthenticated(true);
+      setSessionMode('p');
+      setAuthError(null);
       setPassword('');
       showToast('管理员登录成功', 'success');
     } catch (err: unknown) {
@@ -106,8 +148,15 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
     } catch {
       // ignore
     }
+    // dex 没有 end_session_endpoint，登出只能清本站会话；
+    // IdP 侧登录态是否保留由 dex 决定，这里不做假定。
+    const wasSso = sessionMode === 'd';
     setIsAuthenticated(false);
-    showToast('已退出管理后台', 'info');
+    setSessionMode(null);
+    showToast(
+      wasSso ? '已退出本后台（DEX 侧登录状态可能仍然保留）' : '已退出管理后台',
+      'info'
+    );
   };
 
   // 加载统计与列表
@@ -284,8 +333,42 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ showToast }) => {
               <Lock className="h-6 w-6 stroke-[2]" />
             </div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">管理控制台登录</h2>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">请输入管理员密码</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {ssoEnabled ? '请使用管理员身份登录' : '请输入管理员密码'}
+            </p>
           </div>
+
+          {authError && (
+            <div className="mb-4 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
+              <AlertTriangle className="mt-px h-4 w-4 shrink-0" />
+              <span>{authError}</span>
+            </div>
+          )}
+
+          {ssoEnabled && (
+            <div className="mb-5">
+              <a
+                href="/api/auth/oidc/start?return_to=%2Fadmin"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 active:scale-[0.99] transition-all"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                <span>使用 DEX 登录</span>
+              </a>
+              <p className="mt-2 text-center text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+                DEX 登录仅供授权管理员使用。DEX 不支持单点登出，共用设备上请勿保持登录状态。
+              </p>
+              <div className="relative my-5">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-200 dark:border-slate-800" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-white px-2 text-[11px] text-slate-400 dark:bg-slate-900 dark:text-slate-500">
+                    或使用管理密码
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
