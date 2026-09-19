@@ -28,3 +28,7 @@ dist-ssr
 
 # WorkBuddy Local
 .workbuddy/
+
+# 本地交付物目录 —— 仓库为 PUBLIC，放这里的部署配置清单（含自建 IdP 地址、
+# client_id、其它项目域名）与验证截图**不得入库**，故整目录忽略。
+outputs/
