@@ -2,6 +2,16 @@ name = "shortkey"
 main = "src/worker.ts"
 compatibility_date = "2024-09-23"
 
+# 保留在 Cloudflare Dashboard 上配置的普通变量（Text）。
+#
+# 不设此项时，wrangler deploy 以本文件为「真相来源」：本文件既未声明 [vars]，
+# 部署就会用「空变量集」覆盖 Dashboard，把普通变量一并清除（Secret 不受影响，
+# 因为 Secret 有独立的管理命令）。本项目所有 DEX_* / ADMIN_* 变量都在 Dashboard
+# 维护，故必须保留。
+#
+# 注意：本文件已入库，切勿把密钥写进 [vars]。
+keep_vars = true
+
 # 静态前端资源目录 (Cloudflare Workers + Assets)
 [assets]
 directory = "./dist"
