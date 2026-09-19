@@ -67,6 +67,27 @@ npx wrangler secret put ADMIN_SECRET
 
 不要在 `wrangler.toml` 写 `[vars]` 明文密码，`wrangler deploy` 会覆盖控制台里的普通变量。
 
+#### 2.1 密码登录开关（`PASSWORD_ENABLED`）
+
+| 变量 | 类型 | 默认 | 说明 |
+| --- | --- | --- | --- |
+| `PASSWORD_ENABLED` | Text | 开启 | 显式设为 `false` 时关闭管理员密码登录 |
+
+`PASSWORD_ENABLED=false` 的语义是「切断密码通道」，因此不只是禁止**新的**密码登录：由密码登录签发的**既有会话也一并失效**。典型场景是怀疑密码泄漏、希望立刻停用该入口，而不是等 30 天会话自然过期。
+
+它与 DEX 单点登录**互不排斥**，四种组合都合法：
+
+| `PASSWORD_ENABLED` | DEX（已配 `DEX_*` 且未 `DEX_ENABLED=false`） | 结果 |
+| --- | --- | --- |
+| 开启 | 开启 | 两个入口都显示，任选其一 |
+| `false` | 开启 | 只剩 DEX 入口 |
+| 开启 | 未配置 / `false` | 只剩密码入口 |
+| `false` | 未配置 / `false` | **后台整体锁闭**，`/admin` 显示「当前不可登录」提示 |
+
+最后一种组合是合法配置（例如临时全线封禁后台），但登录页会明确告知原因，而不是摆一个必然失败的密码框。
+
+另外，未配置 `ADMIN_SECRET` 同样会让密码入口不可用 —— 缺签名密钥就无法签发或校验会话，故一并视为关闭。
+
 ### 3. DEX 单点登录（可选）
 
 管理后台可以额外接一个 dex（OIDC）登录入口，与上面的管理密码并存。**不配置本节任何变量时，SSO 入口自动消失**，不影响既有登录方式。
@@ -142,6 +163,9 @@ npx wrangler secret put DEX_CLIENT_SECRET
 7. 点「使用 DEX 登录」跳转到 `https://auth.zkun.de/dex/auth?...`，授权后回到 `/admin` 且已登录
 8. 不在白名单中的 dex 账号完成授权后，落回 `/admin?error=AccessDenied` 并显示友好提示（而非原始错误码）
 9. 未配置任何 `DEX_*` 变量时，登录页不出现 DEX 按钮，管理密码登录不受影响
+10. 设 `PASSWORD_ENABLED=false` 后：密码框不再出现，且此前用密码登录拿到的 Cookie 立即失效（旧会话请求 `/api/admin/stats` 返回 401）
+11. `PASSWORD_ENABLED=false` 且未配置 `DEX_*` 时：`GET /api/auth/providers` 的 `anyEnabled` 为 `false`，`/admin` 显示「管理后台当前不可登录」
+12. `/admin` 页面 Header 与分页栏固定不动，只有中间列表滚动
 
 ---
 

@@ -1,5 +1,5 @@
 import { sha256Base64Url, timingSafeEqual } from './crypto-utils';
-import { handleOidcCallback, handleOidcStart, handleProviders, type OidcEnv } from './oidc';
+import { handleOidcCallback, handleOidcStart, handleProviders, readAuthPolicy, type OidcEnv } from './oidc';
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE,
@@ -242,6 +242,15 @@ export default {
 
     // 3. API: 管理后台登录 POST /api/admin/login
     if (pathname === '/api/admin/login' && method === 'POST') {
+      // PASSWORD_ENABLED=false 时直接拒绝，不进入密码比对
+      const policy = readAuthPolicy(env);
+      if (!policy.passwordEnabled) {
+        return jsonResponse(
+          { success: false, error: '管理员密码登录已停用' },
+          403
+        );
+      }
+
       const body = await request.json<{ password?: string }>().catch(() => ({ password: '' }));
       const secret = env.ADMIN_SECRET?.trim();
       if (!secret) {
@@ -267,7 +276,13 @@ export default {
     if (pathname.startsWith('/api/admin/')) {
       const secret = env.ADMIN_SECRET?.trim();
       const verdict = secret ? await verifySessionToken(secret, getCookie(request, SESSION_COOKIE)) : null;
-      if (!secret || !verdict?.valid) {
+      const policy = readAuthPolicy(env);
+      // 会话所用的登录方式必须当前仍然启用：关闭某个入口时，由它签发的既有会话也应立即失效，
+      // 否则「关闭密码登录」在一整个会话有效期内形同虚设（密码会话默认 30 天）。
+      const sessionAccepted =
+        verdict?.valid === true &&
+        (verdict.mode === 'p' ? policy.passwordEnabled : policy.dexEnabled);
+      if (!secret || !sessionAccepted) {
         return jsonResponse({ error: '未授权访问' }, 401);
       }
 

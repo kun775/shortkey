@@ -33,10 +33,12 @@ import {
   type SessionMode,
 } from './session';
 
-/** OIDC 接入涉及的环境变量子集 */
+/** OIDC 与登录策略涉及的环境变量子集 */
 export interface OidcEnv {
   /** 复用既有管理员密钥作为票据与 state Cookie 的签名密钥 */
   ADMIN_SECRET?: string;
+  /** 设为 'false' 停用管理密码登录（默认开启）；不影响 dex 入口 */
+  PASSWORD_ENABLED?: string;
   DEX_ISSUER?: string;
   DEX_CLIENT_ID?: string;
   DEX_CLIENT_SECRET?: string;
@@ -44,7 +46,7 @@ export interface OidcEnv {
   DEX_ALLOWED_SUBS?: string;
   /** 逗号分隔的邮箱白名单（便捷项；仅在 dex 侧邮箱可信时使用） */
   DEX_ALLOWED_EMAILS?: string;
-  /** 设为 'false' 可临时隐藏登录入口，不必删除凭据 */
+  /** 设为 'false' 可临时隐藏 dex 入口，不必删除凭据 */
   DEX_ENABLED?: string;
 }
 
@@ -398,15 +400,50 @@ function redirectWithError(origin: string, code: string, detail?: string): Respo
 // 路由处理器
 // ---------------------------------------------------------------------------
 
+/** 显式 `false` 才算关闭；未设置视为开启，保证既有默认行为不变 */
+function isSwitchOff(value?: string): boolean {
+  return value?.trim().toLowerCase() === 'false';
+}
+
 /**
- * GET /api/auth/providers —— 供前端在**运行时**判定是否显示 SSO 入口，
+ * 密码登录是否可用。
+ *
+ * `PASSWORD_ENABLED=false` 时不只是禁止**新的**密码登录 —— 由密码登录签发的
+ * **既有会话也一并失效**。关闭一个入口却让该入口已签发的会话继续通行，会与
+ * 「关闭」的安全意图相悖（典型场景：怀疑密码泄漏时希望立刻切断密码通道）。
+ */
+export function isPasswordLoginEnabled(env: OidcEnv): boolean {
+  return !isSwitchOff(env.PASSWORD_ENABLED) && Boolean(env.ADMIN_SECRET?.trim());
+}
+
+export interface AuthPolicy {
+  passwordEnabled: boolean;
+  dexEnabled: boolean;
+  /** 两种方式都不可用 —— 此时后台无法登录 */
+  anyEnabled: boolean;
+}
+
+/**
+ * 后台登录策略。两个入口**互相独立、不互斥**：可以只开密码、只开 dex、
+ * 两者都开，也可以两者都关（后台整体锁闭）—— 后者是合法配置，
+ * 但 UI 必须明确告知，否则用户只会看到一个没有任何入口的登录页。
+ */
+export function readAuthPolicy(env: OidcEnv): AuthPolicy {
+  const passwordEnabled = isPasswordLoginEnabled(env);
+  const dexEnabled = readDexConfig(env).enabled;
+  return { passwordEnabled, dexEnabled, anyEnabled: passwordEnabled || dexEnabled };
+}
+
+/**
+ * GET /api/auth/providers —— 供前端在**运行时**判定显示哪些登录入口，
  * 并回传当前会话的登录方式（用于登出提示的措辞）。
  *
- * 前端绝不能把"是否启用 SSO"编译进产物：构建期读不到运行时 Secret，
+ * 前端绝不能把"是否启用某入口"编译进产物：构建期读不到运行时 Secret，
  * 那个 false 会被烤进静态文件，导致线上入口永久消失且不报错。
  */
 export async function handleProviders(request: Request, env: OidcEnv): Promise<Response> {
   const config = readDexConfig(env);
+  const policy = readAuthPolicy(env);
   const verdict = config.adminSecret
     ? await verifySessionToken(config.adminSecret, getCookie(request, SESSION_COOKIE))
     : null;
@@ -415,13 +452,15 @@ export async function handleProviders(request: Request, env: OidcEnv): Promise<R
     password: { enabled: boolean };
     dex: { enabled: boolean; name: string };
     session: { authenticated: boolean; mode: SessionMode | null };
+    anyEnabled: boolean;
   } = {
-    password: { enabled: Boolean(config.adminSecret) },
-    dex: { enabled: config.enabled, name: 'DEX SSO' },
+    password: { enabled: policy.passwordEnabled },
+    dex: { enabled: policy.dexEnabled, name: 'DEX SSO' },
     session: {
       authenticated: Boolean(verdict?.valid),
       mode: verdict?.valid ? verdict.mode : null,
     },
+    anyEnabled: policy.anyEnabled,
   };
 
   return new Response(JSON.stringify(payload), {
